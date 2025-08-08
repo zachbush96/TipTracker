@@ -1,0 +1,144 @@
+/* Custom styles for tip tracker */
+
+body {
+    background-color: var(--bs-dark);
+    min-height: 100vh;
+}
+
+.navbar {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card {
+    border: 1px solid rgba(255, 255, 255, 0.125);
+    background-color: var(--bs-dark);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background-color: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.125);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #0b5ed7 0%, #0dcaf0 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+#quickStats h4 {
+    font-weight: 700;
+    color: var(--bs-success);
+}
+
+#quickStats h5 {
+    font-weight: 600;
+}
+
+#quickStats h6 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.btn-group .btn-check:checked + .btn {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.form-check-input:checked {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    font-size: 1.5rem;
+}
+
+.alert {
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+/* Animation for loading states */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        border-radius: 0.375rem !important;
+        margin-bottom: 0.25rem;
+    }
+    
+    #customDateRange .row {
+        gap: 0.5rem;
+    }
+    
+    #quickStats .row {
+        text-align: center;
+    }
+    
+    #quickStats .col-4 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Chart styling */
+canvas {
+    max-height: 300px !important;
+}
+
+/* Badge styling */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Custom color variables for consistency */
+:root {
+    --tip-primary: #0d6efd;
+    --tip-success: #20c997;
+    --tip-warning: #ffc107;
+    --tip-danger: #dc3545;
+    --tip-info: #0dcaf0;
+}
