@@ -1,14 +1,15 @@
-import os
-from flask import Blueprint, request, jsonify, session
-from supabase import create_client, Client
-import jwt
+from flask import Blueprint, request, jsonify, session, current_app
+from supabase import create_client
 
 auth_bp = Blueprint('auth', __name__)
 
-# Initialize Supabase client
-supabase_url = os.environ.get("SUPABASE_URL", "")
-supabase_key = os.environ.get("SUPABASE_ANON_KEY", "")
-supabase = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
+def get_supabase_client():
+    """Create a Supabase client from app config."""
+    url = current_app.config.get("SUPABASE_URL")
+    key = current_app.config.get("SUPABASE_ANON_KEY")
+    if not url or not key:
+        return None
+    return create_client(url, key)
 
 @auth_bp.route('/session', methods=['POST'])
 def set_session():
@@ -21,6 +22,7 @@ def set_session():
             return jsonify({'error': 'Access token required'}), 400
         
         # Verify token with Supabase
+        supabase = get_supabase_client()
         if supabase:
             try:
                 user_response = supabase.auth.get_user(access_token)
