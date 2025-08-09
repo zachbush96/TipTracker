@@ -12,6 +12,34 @@ document.addEventListener('DOMContentLoaded', function() {
 // Check authentication status
 async function checkAuthStatus() {
     try {
+        // First check for a Supabase session
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+
+        if (session) {
+            // Sync session with Flask backend
+            await fetch('/auth/session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    access_token: session.access_token
+                })
+            });
+
+            currentUser = {
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.user_metadata.name || session.user.email
+            };
+
+            showMainApp();
+            loadDashboard();
+            return;
+        }
+
+        // Fallback to server session
         const response = await fetch('/auth/user');
         if (response.ok) {
             currentUser = await response.json();
@@ -29,40 +57,14 @@ async function checkAuthStatus() {
 // Google Sign In
 async function signInWithGoogle() {
     try {
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
                 redirectTo: window.location.origin
             }
         });
-        
+
         if (error) throw error;
-        
-        // Handle auth state change
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                // Set session in Flask
-                const response = await fetch('/auth/session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        access_token: session.access_token
-                    })
-                });
-                
-                if (response.ok) {
-                    currentUser = {
-                        id: session.user.id,
-                        email: session.user.email,
-                        name: session.user.user_metadata.name || session.user.email
-                    };
-                    showMainApp();
-                    loadDashboard();
-                }
-            }
-        });
     } catch (error) {
         showAlert('Sign in failed: ' + error.message, 'danger');
     }
