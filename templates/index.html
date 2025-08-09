@@ -238,11 +238,24 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Custom JS -->
-    <script>
+    <!-- <script>
         // Supabase configuration
         const SUPABASE_URL = '{{ config.SUPABASE_URL }}';
         const SUPABASE_ANON_KEY = '{{ config.SUPABASE_ANON_KEY }}';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script> -->
+    <script type="module">
+      import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+      window.supabase = createClient(
+        'https://okblwnznvxrrubgmrkig.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmx3bnpudnhycnViZ21ya2lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODMzMzgsImV4cCI6MjA3MDI1OTMzOH0.UZE4OBf9cZG5TYYxBBStlmsiQk03vanmyMoSm4I36XE',
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        }
+      );
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
