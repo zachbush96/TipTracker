@@ -27,9 +27,9 @@ app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-prod
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 CORS(app)
 
-# ---------- Supabase (REST, not for SQLAlchemy) ----------
-app.config["SUPABASE_REST_URL"] = os.environ.get(
-    "SUPABASE_REST_URL",
+# ---------- Supabase configuration (used by frontend and auth blueprint) ----------
+app.config["SUPABASE_URL"] = os.environ.get(
+    "SUPABASE_URL",
     "https://okblwnznvxrrubgmrkig.supabase.co",
 )
 app.config["SUPABASE_ANON_KEY"] = os.environ.get(
