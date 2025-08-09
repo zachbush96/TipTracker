@@ -243,6 +243,7 @@ function getDateFilterParams() {
 // Load dashboard data
 async function loadDashboard() {
     loadQuickStats();
+    loadTipEntries();
     loadCharts();
 }
 
@@ -278,6 +279,71 @@ async function loadQuickStats() {
     } catch (error) {
         console.error('Failed to load quick stats:', error);
         document.getElementById('quickStats').innerHTML = '<p class="text-danger">Failed to load stats</p>';
+    }
+}
+
+// Load tip entries
+async function loadTipEntries() {
+    try {
+        const params = getDateFilterParams();
+        const response = await fetch(`/api/tips?${params}`);
+        const tbody = document.getElementById('tipsTableBody');
+
+        if (response.ok) {
+            const data = await response.json();
+            const tips = data.tips || [];
+
+            if (!tips.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No entries found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tips.map(tip => `
+                <tr>
+                    <td>${new Date(tip.work_date).toLocaleDateString()}</td>
+                    <td>$${tip.cash_tips.toFixed(2)}</td>
+                    <td>$${tip.card_tips.toFixed(2)}</td>
+                    <td>$${tip.total_tips.toFixed(2)}</td>
+                    <td>${tip.hours_worked.toFixed(2)}</td>
+                    <td>$${tip.tips_per_hour.toFixed(2)}</td>
+                    <td><button class="btn btn-sm btn-outline-danger" onclick="deleteTip(${tip.id})"><i class="fas fa-trash"></i></button></td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load entries</td></tr>';
+        }
+    } catch (error) {
+        console.error('Failed to load tips:', error);
+        const tbody = document.getElementById('tipsTableBody');
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load entries</td></tr>';
+    }
+}
+
+// Delete a tip entry
+async function deleteTip(id) {
+    if (demoMode) {
+        showAlert('Cannot delete tips in demo mode. Switch to Real Data mode.', 'warning');
+        return;
+    }
+
+    if (!confirm('Delete this tip entry?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tips/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showAlert('Tip entry deleted', 'success');
+            loadDashboard();
+        } else {
+            const result = await response.json();
+            showAlert('Failed to delete tip entry: ' + (result.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        showAlert('Error deleting tip entry: ' + error.message, 'danger');
     }
 }
 

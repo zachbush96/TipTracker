@@ -159,6 +159,35 @@ def get_tips():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+@api_bp.route('/tips/<int:tip_id>', methods=['DELETE'])
+@require_auth
+def delete_tip_entry(tip_id):
+    """Delete a tip entry"""
+    try:
+        current_user = get_current_user()
+
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        user = User.query.filter_by(id=current_user['id']).first()
+        query = TipEntry.query.filter_by(id=tip_id)
+        if not user or user.role != 'manager':
+            query = query.filter_by(user_id=current_user['id'])
+
+        tip = query.first()
+        if not tip:
+            return jsonify({'error': 'Tip entry not found'}), 404
+
+        db.session.delete(tip)
+        db.session.commit()
+
+        return jsonify({'success': True})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/stats/daily', methods=['GET'])
 @require_auth
 def get_daily_stats():
