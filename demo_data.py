@@ -14,7 +14,7 @@ def get_demo_data(data_type):
             hours_worked = round(random.uniform(4, 10), 2)
             total_tips = cash_tips + card_tips
             tips_per_hour = round(total_tips / hours_worked, 2)
-            
+
             demo_tips.append({
                 'id': i + 1,
                 'user_id': 'demo-user',
@@ -25,6 +25,7 @@ def get_demo_data(data_type):
                 'weekday': work_date.weekday(),
                 'total_tips': total_tips,
                 'tips_per_hour': tips_per_hour,
+                'comments': random.choice(['Busy night', 'Slow shift', 'Great tips', '']),
                 'created_at': f"{work_date}T18:00:00Z",
                 'updated_at': f"{work_date}T18:00:00Z"
             })

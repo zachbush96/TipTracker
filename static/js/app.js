@@ -3,6 +3,12 @@ let currentUser = null;
 let charts = {};
 let demoMode = false;
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthStatus();
@@ -151,7 +157,8 @@ async function handleTipSubmission(e) {
     const formData = {
         cash_tips: parseFloat(document.getElementById('cashTips').value) || 0,
         card_tips: parseFloat(document.getElementById('cardTips').value) || 0,
-        hours_worked: parseFloat(document.getElementById('hoursWorked').value) || 0
+        hours_worked: parseFloat(document.getElementById('hoursWorked').value) || 0,
+        comments: document.getElementById('comments').value.trim()
     };
     
     const submitBtn = document.getElementById('submitTipBtn');
@@ -294,7 +301,7 @@ async function loadTipEntries() {
             const tips = data.tips || [];
 
             if (!tips.length) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No entries found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No entries found</td></tr>';
                 return;
             }
 
@@ -306,16 +313,17 @@ async function loadTipEntries() {
                     <td>$${tip.total_tips.toFixed(2)}</td>
                     <td>${tip.hours_worked.toFixed(2)}</td>
                     <td>$${tip.tips_per_hour.toFixed(2)}</td>
+                    <td>${tip.comments ? escapeHtml(tip.comments) : ''}</td>
                     <td><button class="btn btn-sm btn-outline-danger" onclick="deleteTip(${tip.id})"><i class="fas fa-trash"></i></button></td>
                 </tr>
             `).join('');
         } else {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load entries</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Failed to load entries</td></tr>';
         }
     } catch (error) {
         console.error('Failed to load tips:', error);
         const tbody = document.getElementById('tipsTableBody');
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load entries</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Failed to load entries</td></tr>';
     }
 }
 

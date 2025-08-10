@@ -34,6 +34,7 @@ create table if not exists public.tip_entries (
   weekday smallint not null check (weekday between 0 and 6), -- 0=Mon .. 6=Sun
   total_tips numeric(10,2) not null default 0,
   tips_per_hour numeric(8,2) not null default 0,
+  comments text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

@@ -28,6 +28,7 @@ class TipEntry(db.Model):
     weekday = db.Column(db.Integer, nullable=False)  # 0=Monday, 6=Sunday
     total_tips = db.Column(db.Numeric(10, 2), nullable=False)  # Computed field
     tips_per_hour = db.Column(db.Numeric(8, 2), nullable=False)  # Computed field
+    comments = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), default=func.now(), onupdate=func.now())
     
@@ -51,6 +52,7 @@ class TipEntry(db.Model):
             'weekday': self.weekday,
             'total_tips': float(self.total_tips),
             'tips_per_hour': float(self.tips_per_hour),
+            'comments': self.comments,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }

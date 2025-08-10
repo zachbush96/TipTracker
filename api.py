@@ -41,11 +41,19 @@ def validate_tip_entry(data):
             errors.append('Hours worked cannot exceed 24')
     except (ValueError, TypeError):
         errors.append('Hours worked must be a valid number')
-    
+
+    # Comments (optional)
+    comments = data.get('comments', '')
+    if comments is not None:
+        comments = str(comments).strip()
+        if len(comments) > 500:
+            errors.append('Comments cannot exceed 500 characters')
+
     return errors, {
         'cash_tips': round(cash_tips, 2),
         'card_tips': round(card_tips, 2),
-        'hours_worked': round(hours_worked, 2)
+        'hours_worked': round(hours_worked, 2),
+        'comments': comments
     }
 
 @api_bp.route('/tips', methods=['POST'])
@@ -87,7 +95,8 @@ def create_tip_entry():
             card_tips=Decimal(str(validated_data['card_tips'])),
             hours_worked=Decimal(str(validated_data['hours_worked'])),
             work_date=work_date,
-            weekday=weekday
+            weekday=weekday,
+            comments=validated_data.get('comments') or None
         )
         
         db.session.add(tip_entry)
