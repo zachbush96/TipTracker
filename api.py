@@ -117,15 +117,13 @@ def create_tip_entry():
 def get_tips():
     """Get tip entries with filtering"""
     try:
-        current_user = get_current_user()
-        
-        if not current_user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
         demo_mode = request.args.get('demo', 'false').lower() == 'true'
-        
         if demo_mode:
             return jsonify(get_demo_data('tips'))
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
         
         # Date filtering
         days = request.args.get('days', '30')
@@ -207,15 +205,13 @@ def delete_tip_entry(tip_id):
 def get_daily_stats():
     """Get daily tip statistics"""
     try:
-        current_user = get_current_user()
-        
-        if not current_user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
         demo_mode = request.args.get('demo', 'false').lower() == 'true'
-        
         if demo_mode:
             return jsonify(get_demo_data('daily_stats'))
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
         
         # Date filtering (same as get_tips)
         days = request.args.get('days', '30')
@@ -280,15 +276,14 @@ def get_daily_stats():
 def get_weekday_stats():
     """Get weekday average statistics"""
     try:
-        current_user = get_current_user()
-        
-        if not current_user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
+        # Check for demo mode before verifying authentication
         demo_mode = request.args.get('demo', 'false').lower() == 'true'
-        
         if demo_mode:
             return jsonify(get_demo_data('weekday_stats'))
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
         
         # Build query for weekday averages
         query = db.session.query(
@@ -342,15 +337,14 @@ def get_weekday_stats():
 def get_breakdown_stats():
     """Get cash vs card breakdown"""
     try:
-        current_user = get_current_user()
-        
-        if not current_user:
-            return jsonify({'error': 'Authentication required'}), 401
-        
+        # Allow demo mode responses without requiring authentication
         demo_mode = request.args.get('demo', 'false').lower() == 'true'
-        
         if demo_mode:
             return jsonify(get_demo_data('breakdown_stats'))
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
         
         # Build query for totals
         query = db.session.query(
