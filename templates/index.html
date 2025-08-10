@@ -104,8 +104,12 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="hoursWorked" class="form-label">Hours Worked</label>
-                                    <input type="number" class="form-control" id="hoursWorked" 
+                                    <input type="number" class="form-control" id="hoursWorked"
                                            step="0.25" min="0.25" max="24" placeholder="8.0">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="comments" class="form-label">Comments</label>
+                                    <textarea class="form-control" id="comments" rows="2" placeholder="Optional notes about your shift"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-primary w-100" id="submitTipBtn">
                                     <i class="fas fa-save me-2"></i>
@@ -193,12 +197,13 @@
                                             <th>Total</th>
                                             <th>Hours</th>
                                             <th>Tips/Hour</th>
+                                            <th>Comments</th>
                                             <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="tipsTableBody">
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted">Loading...</td>
+                                            <td colspan="8" class="text-center text-muted">Loading...</td>
                                         </tr>
                                     </tbody>
                                 </table>
