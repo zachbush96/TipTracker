@@ -41,6 +41,7 @@ async function checkAuthStatus() {
             };
 
             showMainApp();
+            await loadUserRole();
             loadDashboard();
             return;
         }
@@ -50,6 +51,7 @@ async function checkAuthStatus() {
         if (response.ok) {
             currentUser = await response.json();
             showMainApp();
+            await loadUserRole();
             loadDashboard();
         } else {
             showAuthRequired();
@@ -101,10 +103,9 @@ function showMainApp() {
     document.getElementById('mainApp').classList.remove('d-none');
     document.getElementById('loginBtn').classList.add('d-none');
     document.getElementById('userSection').classList.remove('d-none');
-    
+
     if (currentUser) {
         document.getElementById('userName').textContent = currentUser.name || currentUser.email;
-        loadUserRole();
     }
 }
 
@@ -114,9 +115,24 @@ async function loadUserRole() {
         const response = await fetch('/api/user/role');
         if (response.ok) {
             const data = await response.json();
+            currentUser.role = data.role;
             const roleElement = document.getElementById('userRole');
             roleElement.textContent = data.role.charAt(0).toUpperCase() + data.role.slice(1);
             roleElement.className = `badge ${data.role === 'manager' ? 'bg-warning' : 'bg-secondary'} ms-2`;
+
+            const userHeader = document.getElementById('userColumnHeader');
+            if (userHeader) {
+                if (data.role === 'manager') {
+                    userHeader.classList.remove('d-none');
+                } else {
+                    userHeader.classList.add('d-none');
+                }
+            }
+
+            const placeholder = document.querySelector('#tipsTableBody tr td');
+            if (placeholder && placeholder.hasAttribute('colspan')) {
+                placeholder.setAttribute('colspan', data.role === 'manager' ? 9 : 8);
+            }
         }
     } catch (error) {
         console.error('Failed to load user role:', error);
@@ -295,19 +311,22 @@ async function loadTipEntries() {
         const params = getDateFilterParams();
         const response = await fetch(`/api/tips?${params}`);
         const tbody = document.getElementById('tipsTableBody');
+        const isManager = currentUser && currentUser.role === 'manager';
+        const columnCount = isManager ? 9 : 8;
 
         if (response.ok) {
             const data = await response.json();
             const tips = data.tips || [];
 
             if (!tips.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No entries found</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-muted">No entries found</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = tips.map(tip => `
                 <tr>
                     <td>${new Date(tip.work_date).toLocaleDateString()}</td>
+                    ${isManager ? `<td>${tip.user_name ? escapeHtml(tip.user_name) : ''}</td>` : ''}
                     <td>$${tip.cash_tips.toFixed(2)}</td>
                     <td>$${tip.card_tips.toFixed(2)}</td>
                     <td>$${tip.total_tips.toFixed(2)}</td>
@@ -318,12 +337,14 @@ async function loadTipEntries() {
                 </tr>
             `).join('');
         } else {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Failed to load entries</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-danger">Failed to load entries</td></tr>`;
         }
     } catch (error) {
         console.error('Failed to load tips:', error);
         const tbody = document.getElementById('tipsTableBody');
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Failed to load entries</td></tr>';
+        const isManager = currentUser && currentUser.role === 'manager';
+        const columnCount = isManager ? 9 : 8;
+        tbody.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-danger">Failed to load entries</td></tr>`;
     }
 }
 

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 from sqlalchemy import func, and_, or_
+from sqlalchemy.orm import joinedload
 from app import db
 from models import User, TipEntry
 from auth import require_auth, get_current_user
@@ -132,7 +133,7 @@ def get_tips():
         end_date = request.args.get('end_date')
         
         # Build query
-        query = TipEntry.query
+        query = TipEntry.query.options(joinedload(TipEntry.user))
         
         # Role-based filtering
         user = User.query.filter_by(id=current_user['id']).first()
@@ -160,10 +161,14 @@ def get_tips():
         
         # Order by date descending
         tips = query.order_by(TipEntry.work_date.desc()).all()
-        
-        return jsonify({
-            'tips': [tip.to_dict() for tip in tips]
-        })
+
+        result = []
+        for tip in tips:
+            tip_dict = tip.to_dict()
+            tip_dict['user_name'] = tip.user.name if tip.user else None
+            result.append(tip_dict)
+
+        return jsonify({'tips': result})
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
