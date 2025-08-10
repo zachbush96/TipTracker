@@ -50,11 +50,56 @@
         <!-- Alert area -->
         <div id="alertArea"></div>
         
-        <!-- Auth Required Message -->
-        <div id="authRequired" class="text-center py-5">
-            <i class="fas fa-lock fa-3x text-muted mb-3"></i>
-            <h3>Sign In Required</h3>
-            <p class="text-muted">Please sign in with Google to access your tip tracking dashboard.</p>
+        <!-- Landing Page for Unauthenticated Users -->
+        <div id="authRequired" class="py-5">
+            <div class="text-center hero mb-5">
+                <h1 class="display-5 fw-bold mb-3">Track Your Tips with Confidence</h1>
+                <p class="lead text-muted mb-4">Tip Tracker helps restaurant servers monitor earnings, spot trends, and make every shift count.</p>
+                <button class="btn btn-primary btn-lg" onclick="signInWithGoogle()">
+                    <i class="fab fa-google me-2"></i>Sign in with Google
+                </button>
+            </div>
+            <div class="row justify-content-center mb-4">
+                <div class="col-md-8">
+                    <ul class="list-unstyled text-start">
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Log cash and card tips in seconds</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Discover which weekdays earn you the most</li>
+                        <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Stay on top of your goals with quick stats</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Quick Stats
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="publicQuickStats" class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-calendar-week me-2"></i>
+                                Weekday Averages
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="publicWeekdayChart" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Main App Content -->

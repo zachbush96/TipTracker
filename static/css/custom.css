@@ -47,16 +47,16 @@ body {
     height: 300px;
 }
 
-#quickStats h4 {
+#quickStats h4, #publicQuickStats h4 {
     font-weight: 700;
     color: var(--bs-success);
 }
 
-#quickStats h5 {
+#quickStats h5, #publicQuickStats h5 {
     font-weight: 600;
 }
 
-#quickStats h6 {
+#quickStats h6, #publicQuickStats h6 {
     font-size: 0.875rem;
     font-weight: 600;
     text-transform: uppercase;
