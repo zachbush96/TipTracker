@@ -227,6 +227,12 @@ async function loadUserRole() {
 function setupEventListeners() {
     // Tip form submission
     document.getElementById('tipForm').addEventListener('submit', handleTipSubmission);
+
+    // Set default tip date to today
+    const tipDateInput = document.getElementById('tipDate');
+    if (tipDateInput) {
+        tipDateInput.value = new Date().toISOString().split('T')[0];
+    }
     
     // Demo mode toggle
     document.getElementById('demoModeToggle').addEventListener('change', function(e) {
@@ -258,7 +264,8 @@ async function handleTipSubmission(e) {
         cash_tips: parseFloat(document.getElementById('cashTips').value) || 0,
         card_tips: parseFloat(document.getElementById('cardTips').value) || 0,
         hours_worked: parseFloat(document.getElementById('hoursWorked').value) || 0,
-        comments: document.getElementById('comments').value.trim()
+        comments: document.getElementById('comments').value.trim(),
+        work_date: document.getElementById('tipDate').value || new Date().toISOString().split('T')[0]
     };
     
     const submitBtn = document.getElementById('submitTipBtn');
@@ -281,6 +288,10 @@ async function handleTipSubmission(e) {
         if (response.ok) {
             showAlert('Tip entry saved successfully!', 'success');
             document.getElementById('tipForm').reset();
+            const tipDateInput = document.getElementById('tipDate');
+            if (tipDateInput) {
+                tipDateInput.value = new Date().toISOString().split('T')[0];
+            }
             loadDashboard();
         } else {
             if (result.errors) {

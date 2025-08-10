@@ -50,11 +50,25 @@ def validate_tip_entry(data):
         if len(comments) > 500:
             errors.append('Comments cannot exceed 500 characters')
 
+    # Validate work_date
+    work_date_str = data.get('work_date')
+    if work_date_str:
+        try:
+            work_date = date.fromisoformat(work_date_str)
+            if work_date > date.today():
+                errors.append('Work date cannot be in the future')
+        except ValueError:
+            errors.append('Invalid date format. Use YYYY-MM-DD')
+            work_date = date.today()
+    else:
+        work_date = date.today()
+
     return errors, {
         'cash_tips': round(cash_tips, 2),
         'card_tips': round(card_tips, 2),
         'hours_worked': round(hours_worked, 2),
-        'comments': comments
+        'comments': comments,
+        'work_date': work_date
     }
 
 @api_bp.route('/tips', methods=['POST'])
@@ -85,8 +99,8 @@ def create_tip_entry():
             db.session.add(user)
             db.session.commit()
         
-        # Get work date (server-side)
-        work_date = date.today()
+        # Get work date from input (defaults to today)
+        work_date = validated_data['work_date']
         weekday = work_date.weekday()  # 0=Monday, 6=Sunday
         
         # Create tip entry
