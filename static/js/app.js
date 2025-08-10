@@ -96,6 +96,7 @@ function showAuthRequired() {
     document.getElementById('mainApp').classList.add('d-none');
     document.getElementById('loginBtn').classList.remove('d-none');
     document.getElementById('userSection').classList.add('d-none');
+    loadPublicDashboard();
 }
 
 function showMainApp() {
@@ -106,6 +107,89 @@ function showMainApp() {
 
     if (currentUser) {
         document.getElementById('userName').textContent = currentUser.name || currentUser.email;
+    }
+}
+
+// Load demo data for landing page
+async function loadPublicDashboard() {
+    loadDemoQuickStats('publicQuickStats');
+    loadDemoWeekdayChart('publicWeekdayChart');
+}
+
+async function loadDemoQuickStats(elementId) {
+    try {
+        const response = await fetch('/api/stats/breakdown?demo=true&days=30');
+        if (response.ok) {
+            const data = await response.json();
+            const breakdown = data.breakdown;
+            document.getElementById(elementId).innerHTML = `
+                <div class="row">
+                    <div class="col-4">
+                        <h6 class="text-success">Total Tips</h6>
+                        <h4>$${breakdown.total_tips.toFixed(2)}</h4>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-info">Cash</h6>
+                        <h5>$${breakdown.cash_tips.toFixed(2)}</h5>
+                        <small class="text-muted">${breakdown.cash_percentage}%</small>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-warning">Card</h6>
+                        <h5>$${breakdown.card_tips.toFixed(2)}</h5>
+                        <small class="text-muted">${breakdown.card_percentage}%</small>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load demo quick stats:', error);
+        document.getElementById(elementId).innerHTML = '<p class="text-danger">Failed to load stats</p>';
+    }
+}
+
+async function loadDemoWeekdayChart(canvasId) {
+    try {
+        const response = await fetch('/api/stats/weekday?demo=true&days=30');
+        if (response.ok) {
+            const data = await response.json();
+            const weekdayStats = data.weekday_stats;
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (charts[canvasId]) {
+                charts[canvasId].destroy();
+            }
+            charts[canvasId] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: weekdayStats.map(stat => stat.weekday_name),
+                    datasets: [{
+                        label: 'Average Tips',
+                        data: weekdayStats.map(stat => stat.avg_tips),
+                        backgroundColor: '#6f42c1',
+                        borderColor: '#6f42c1',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load demo weekday chart:', error);
     }
 }
 
