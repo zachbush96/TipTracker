@@ -9,6 +9,11 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function formatLocalDate(dateStr) {
+    const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString();
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthStatus();
@@ -420,7 +425,7 @@ async function loadTipEntries() {
 
             tbody.innerHTML = tips.map(tip => `
                 <tr>
-                    <td>${new Date(tip.work_date).toLocaleDateString()}</td>
+                    <td>${formatLocalDate(tip.work_date)}</td>
                     ${isManager ? `<td>${tip.user_name ? escapeHtml(tip.user_name) : ''}</td>` : ''}
                     <td>$${tip.cash_tips.toFixed(2)}</td>
                     <td>$${tip.card_tips.toFixed(2)}</td>
@@ -501,7 +506,7 @@ async function loadDailyChart() {
             charts.daily = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: dailyStats.map(stat => new Date(stat.date).toLocaleDateString()),
+                    labels: dailyStats.map(stat => formatLocalDate(stat.date)),
                     datasets: [{
                         label: 'Total Tips',
                         data: dailyStats.map(stat => stat.total_tips),
@@ -657,7 +662,7 @@ async function loadHourlyChart() {
             charts.hourly = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: dailyStats.map(stat => new Date(stat.date).toLocaleDateString()),
+                    labels: dailyStats.map(stat => formatLocalDate(stat.date)),
                     datasets: [{
                         label: 'Tips per Hour',
                         data: dailyStats.map(stat => stat.avg_tips_per_hour),
