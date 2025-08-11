@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime, date, timedelta
 from decimal import Decimal
+import os
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
 from app import db
@@ -423,5 +424,40 @@ def get_user_role():
         
         return jsonify({'role': user.role})
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/requests', methods=['POST'])
+@require_auth
+def submit_user_request():
+    """Receive feature requests or bug reports from users"""
+    try:
+        current_user = get_current_user()
+        data = request.get_json() or {}
+        request_type = data.get('type', 'feature')
+        details = (data.get('details') or '').strip()
+
+        if not details:
+            return jsonify({'error': 'Request details are required'}), 400
+
+        timestamp = datetime.utcnow().isoformat()
+        user_name = current_user.get('name') or current_user.get('email')
+        user_email = current_user.get('email')
+        user_id = current_user.get('id')
+        ip_addr = request.remote_addr
+        user_agent = request.user_agent.string
+
+        entry = (
+            f"[{timestamp}] {user_name} ({user_email}, id={user_id}, ip={ip_addr}) "
+            f"[{request_type}] {details} | UA: {user_agent}\n"
+        )
+
+        file_path = os.path.join(os.path.dirname(__file__), 'user_requests.txt')
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(entry)
+
+        return jsonify({'success': True})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
