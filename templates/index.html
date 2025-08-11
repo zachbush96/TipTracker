@@ -313,7 +313,42 @@
                     </div>
                 </div>
             </div>
+
+        <!-- Feature Requests / Bug Reports -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-paper-plane me-2"></i>
+                            Request Features or Report Bugs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3 text-muted">
+                            Have an idea or noticed something wrong? Use this form to request new features or report issues you run into while using the app.
+                        </p>
+                        <form id="requestForm">
+                            <div class="mb-3">
+                                <label for="requestType" class="form-label">Request Type</label>
+                                <select class="form-select" id="requestType">
+                                    <option value="feature">Feature Request</option>
+                                    <option value="bug">Bug Report</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="requestDetails" class="form-label">Details</label>
+                                <textarea class="form-control" id="requestDetails" rows="3" placeholder="Describe your idea or the issue you encountered"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-secondary w-100" id="submitRequestBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Submit Request
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
     </div>
 
     <!-- Bootstrap JS -->

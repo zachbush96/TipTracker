@@ -254,6 +254,9 @@ function setupEventListeners() {
     // Custom date range inputs
     document.getElementById('startDate').addEventListener('change', handleCustomDateChange);
     document.getElementById('endDate').addEventListener('change', handleCustomDateChange);
+
+    // Feature request / bug report submission
+    document.getElementById('requestForm').addEventListener('submit', handleRequestSubmission);
 }
 
 // Handle tip form submission
@@ -307,6 +310,46 @@ async function handleTipSubmission(e) {
         }
     } catch (error) {
         showAlert('Error saving tip entry: ' + error.message, 'danger');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// Handle feature request / bug report submission
+async function handleRequestSubmission(e) {
+    e.preventDefault();
+
+    const formData = {
+        type: document.getElementById('requestType').value,
+        details: document.getElementById('requestDetails').value.trim()
+    };
+
+    const submitBtn = document.getElementById('submitRequestBtn');
+    const originalText = submitBtn.innerHTML;
+
+    try {
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+        submitBtn.disabled = true;
+
+        const response = await fetch('/api/requests', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showAlert('Your request has been submitted. Thank you!', 'success');
+            document.getElementById('requestForm').reset();
+        } else {
+            showAlert('Failed to submit request: ' + (result.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        showAlert('Error submitting request: ' + error.message, 'danger');
     } finally {
         submitBtn.innerHTML = originalText;
         submitBtn.disabled = false;
