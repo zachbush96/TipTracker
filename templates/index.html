@@ -3,16 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tip Tracker - Restaurant Server Tips</title>
-    
+    <meta name="description" content="Tip Tracker helps restaurant servers log tips, analyze shifts, and boost earnings with free, secure tracking.">
+    <meta name="keywords" content="tip tracker, server tips, restaurant income, gratuity app, waitress tips, track earnings">
+    <meta name="robots" content="index, follow">
+    <meta name="google-site-verification" content="GOOGLE_VERIFICATION_TOKEN">
+    <meta name="facebook-domain-verification" content="FACEBOOK_VERIFICATION_TOKEN">
+    <link rel="canonical" href="{{ url_for('index', _external=True) }}">
+    <title>Tip Tracker | Free Tip Tracking for Restaurant Servers</title>
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Tip Tracker | Free Tip Tracking for Restaurant Servers">
+    <meta property="og:description" content="Log cash and card tips, view daily stats, and maximize your income.">
+    <meta property="og:url" content="{{ url_for('index', _external=True) }}">
+    <meta property="og:image" content="{{ url_for('static', filename='img/og-image.png', _external=True) }}">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Tip Tracker | Free Tip Tracking for Restaurant Servers">
+    <meta name="twitter:description" content="Track tips with confidence and discover earning trends.">
+    <meta name="twitter:image" content="{{ url_for('static', filename='img/og-image.png', _external=True) }}">
+    <meta name="theme-color" content="#0d6efd">
+
     <!-- Bootstrap CSS -->
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome for icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Tip Tracker",
+      "applicationCategory": "FinanceApplication",
+      "operatingSystem": "Web",
+      "description": "Tip Tracker helps restaurant servers monitor earnings, spot trends, and make every shift count.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
 </head>
 <body>
     <!-- Navigation -->
@@ -53,10 +89,10 @@
         <!-- Landing Page for Unauthenticated Users -->
         <div id="authRequired" class="py-5">
             <div class="text-center hero mb-5">
-                <h1 class="display-5 fw-bold mb-3">Track Your Tips with Confidence</h1>
-                <p class="lead text-muted mb-4">Tip Tracker helps restaurant servers monitor earnings, spot trends, and make every shift count.</p>
+                <h1 class="display-5 fw-bold mb-3">Track Restaurant Tips &amp; Boost Your Income</h1>
+                <p class="lead text-muted mb-4">Free tip tracking app for servers&mdash;log cash and card tips, analyze shifts, and reach your goals faster.</p>
                 <button class="btn btn-primary btn-lg" onclick="signInWithGoogle()">
-                    <i class="fab fa-google me-2"></i>Sign in with Google
+                    <i class="fab fa-google me-2"></i>Get Started Free
                 </button>
             </div>
             <div class="row justify-content-center mb-4">
@@ -99,6 +135,12 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="text-center my-5">
+                <h2 class="fw-bold mb-3">Ready to take control of your tips?</h2>
+                <button class="btn btn-primary btn-lg" onclick="signInWithGoogle()">
+                    <i class="fab fa-google me-2"></i>Start Tracking Free
+                </button>
             </div>
         </div>
 
