@@ -129,19 +129,24 @@ async function loadDemoQuickStats(elementId) {
             const breakdown = data.breakdown;
             document.getElementById(elementId).innerHTML = `
                 <div class="row">
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-success">Total Tips</h6>
                         <h4>$${breakdown.total_tips.toFixed(2)}</h4>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-info">Cash</h6>
                         <h5>$${breakdown.cash_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.cash_percentage}%</small>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-warning">Card</h6>
                         <h5>$${breakdown.card_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.card_percentage}%</small>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-primary">Tip %</h6>
+                        <h5>${breakdown.tip_percentage.toFixed(2)}%</h5>
+                        <small class="text-muted">on $${breakdown.total_sales.toFixed(2)}</small>
                     </div>
                 </div>
             `;
@@ -220,7 +225,7 @@ async function loadUserRole() {
 
             const placeholder = document.querySelector('#tipsTableBody tr td');
             if (placeholder && placeholder.hasAttribute('colspan')) {
-                placeholder.setAttribute('colspan', data.role === 'manager' ? 9 : 8);
+                placeholder.setAttribute('colspan', data.role === 'manager' ? 12 : 11);
             }
         }
     } catch (error) {
@@ -272,6 +277,8 @@ async function handleTipSubmission(e) {
         cash_tips: parseFloat(document.getElementById('cashTips').value) || 0,
         card_tips: parseFloat(document.getElementById('cardTips').value) || 0,
         hours_worked: parseFloat(document.getElementById('hoursWorked').value) || 0,
+        sales_amount: parseFloat(document.getElementById('totalSales').value) || 0,
+        section: document.getElementById('section').value.trim().toLowerCase(),
         comments: document.getElementById('comments').value.trim(),
         work_date: document.getElementById('tipDate').value || new Date().toISOString().split('T')[0]
     };
@@ -411,6 +418,7 @@ async function loadDashboard() {
     loadQuickStats();
     loadTipEntries();
     loadCharts();
+    loadSections();
 }
 
 // Load quick stats
@@ -425,19 +433,24 @@ async function loadQuickStats() {
             
             document.getElementById('quickStats').innerHTML = `
                 <div class="row">
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-success">Total Tips</h6>
                         <h4>$${breakdown.total_tips.toFixed(2)}</h4>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-info">Cash</h6>
                         <h5>$${breakdown.cash_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.cash_percentage}%</small>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <h6 class="text-warning">Card</h6>
                         <h5>$${breakdown.card_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.card_percentage}%</small>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-primary">Tip %</h6>
+                        <h5>${breakdown.tip_percentage.toFixed(2)}%</h5>
+                        <small class="text-muted">on $${breakdown.total_sales.toFixed(2)}</small>
                     </div>
                 </div>
             `;
@@ -448,6 +461,26 @@ async function loadQuickStats() {
     }
 }
 
+// Load sections for autocomplete
+async function loadSections() {
+    try {
+        const params = new URLSearchParams();
+        if (demoMode) {
+            params.append('demo', 'true');
+        }
+        const response = await fetch(`/api/sections?${params}`);
+        if (response.ok) {
+            const data = await response.json();
+            const list = document.getElementById('sectionsList');
+            if (list) {
+                list.innerHTML = data.sections.map(sec => `<option value="${sec}"></option>`).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load sections:', error);
+    }
+}
+
 // Load tip entries
 async function loadTipEntries() {
     try {
@@ -455,7 +488,7 @@ async function loadTipEntries() {
         const response = await fetch(`/api/tips?${params}`);
         const tbody = document.getElementById('tipsTableBody');
         const isManager = currentUser && currentUser.role === 'manager';
-        const columnCount = isManager ? 9 : 8;
+        const columnCount = isManager ? 12 : 11;
 
         if (response.ok) {
             const data = await response.json();
@@ -470,9 +503,12 @@ async function loadTipEntries() {
                 <tr>
                     <td>${formatLocalDate(tip.work_date)}</td>
                     ${isManager ? `<td>${tip.user_name ? escapeHtml(tip.user_name) : ''}</td>` : ''}
+                    <td>${tip.section ? escapeHtml(tip.section) : ''}</td>
+                    <td>$${tip.sales_amount.toFixed(2)}</td>
                     <td>$${tip.cash_tips.toFixed(2)}</td>
                     <td>$${tip.card_tips.toFixed(2)}</td>
                     <td>$${tip.total_tips.toFixed(2)}</td>
+                    <td>${tip.tip_percentage.toFixed(2)}%</td>
                     <td>${tip.hours_worked.toFixed(2)}</td>
                     <td>$${tip.tips_per_hour.toFixed(2)}</td>
                     <td>${tip.comments ? escapeHtml(tip.comments) : ''}</td>
@@ -486,7 +522,7 @@ async function loadTipEntries() {
         console.error('Failed to load tips:', error);
         const tbody = document.getElementById('tipsTableBody');
         const isManager = currentUser && currentUser.role === 'manager';
-        const columnCount = isManager ? 9 : 8;
+        const columnCount = isManager ? 12 : 11;
         tbody.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-danger">Failed to load entries</td></tr>`;
     }
 }
@@ -525,7 +561,8 @@ async function loadCharts() {
         loadDailyChart(),
         loadBreakdownChart(),
         loadWeekdayChart(),
-        loadHourlyChart()
+        loadHourlyChart(),
+        loadPercentageChart()
     ]);
 }
 
@@ -737,6 +774,62 @@ async function loadHourlyChart() {
         }
     } catch (error) {
         console.error('Failed to load hourly chart:', error);
+    }
+}
+
+// Load tip percentage chart
+async function loadPercentageChart() {
+    try {
+        const params = getDateFilterParams();
+        const response = await fetch(`/api/stats/daily?${params}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            const dailyStats = data.daily_stats;
+
+            const ctx = document.getElementById('percentageChart').getContext('2d');
+
+            if (charts.percentage) {
+                charts.percentage.destroy();
+            }
+
+            charts.percentage = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dailyStats.map(stat => formatLocalDate(stat.date)),
+                    datasets: [{
+                        label: 'Tip %',
+                        data: dailyStats.map(stat => stat.avg_tip_percentage),
+                        borderColor: '#198754',
+                        backgroundColor: '#19875420',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load percentage chart:', error);
     }
 }
 

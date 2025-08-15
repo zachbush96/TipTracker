@@ -44,6 +44,22 @@ def validate_tip_entry(data):
     except (ValueError, TypeError):
         errors.append('Hours worked must be a valid number')
 
+    # Validate sales_amount
+    sales_amount = data.get('sales_amount', 0)
+    try:
+        sales_amount = float(sales_amount)
+        if sales_amount < 0:
+            errors.append('Sales amount cannot be negative')
+    except (ValueError, TypeError):
+        errors.append('Sales amount must be a valid number')
+
+    # Validate section (optional)
+    section = data.get('section')
+    if section is not None:
+        section = str(section).strip().lower()
+        if len(section) > 50:
+            errors.append('Section cannot exceed 50 characters')
+
     # Comments (optional)
     comments = data.get('comments', '')
     if comments is not None:
@@ -68,6 +84,8 @@ def validate_tip_entry(data):
         'cash_tips': round(cash_tips, 2),
         'card_tips': round(card_tips, 2),
         'hours_worked': round(hours_worked, 2),
+        'sales_amount': round(sales_amount, 2),
+        'section': section,
         'comments': comments,
         'work_date': work_date
     }
@@ -110,6 +128,8 @@ def create_tip_entry():
             cash_tips=Decimal(str(validated_data['cash_tips'])),
             card_tips=Decimal(str(validated_data['card_tips'])),
             hours_worked=Decimal(str(validated_data['hours_worked'])),
+            sales_amount=Decimal(str(validated_data['sales_amount'])),
+            section=validated_data.get('section'),
             work_date=work_date,
             weekday=weekday,
             comments=validated_data.get('comments') or None
@@ -215,6 +235,25 @@ def delete_tip_entry(tip_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/sections', methods=['GET'])
+@require_auth
+def get_sections():
+    """Return distinct sections for current user"""
+    try:
+        demo_mode = request.args.get('demo', 'false').lower() == 'true'
+        if demo_mode:
+            return jsonify({'sections': ['cocktail', 'server 4', 'patio', 'bar']})
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        query = db.session.query(TipEntry.section).filter_by(user_id=current_user['id']).distinct()
+        sections = [row.section for row in query if row.section]
+        return jsonify({'sections': sections})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/stats/daily', methods=['GET'])
 @require_auth
 def get_daily_stats():
@@ -240,7 +279,8 @@ def get_daily_stats():
             func.sum(TipEntry.card_tips).label('total_card'),
             func.sum(TipEntry.total_tips).label('total_tips'),
             func.sum(TipEntry.hours_worked).label('total_hours'),
-            func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour')
+            func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour'),
+            func.sum(TipEntry.sales_amount).label('total_sales')
         )
         
         # Role-based filtering
@@ -272,13 +312,18 @@ def get_daily_stats():
         
         result = []
         for stat in daily_stats:
+            total_sales = float(stat.total_sales or 0)
+            total_tips = float(stat.total_tips or 0)
+            avg_tip_percentage = round((total_tips / total_sales * 100), 2) if total_sales > 0 else 0
             result.append({
                 'date': stat.work_date.isoformat(),
                 'total_cash': float(stat.total_cash or 0),
                 'total_card': float(stat.total_card or 0),
-                'total_tips': float(stat.total_tips or 0),
+                'total_tips': total_tips,
                 'total_hours': float(stat.total_hours or 0),
-                'avg_tips_per_hour': float(stat.avg_tips_per_hour or 0)
+                'avg_tips_per_hour': float(stat.avg_tips_per_hour or 0),
+                'total_sales': total_sales,
+                'avg_tip_percentage': avg_tip_percentage
             })
         
         return jsonify({'daily_stats': result})
@@ -307,7 +352,9 @@ def get_weekday_stats():
             func.avg(TipEntry.card_tips).label('avg_card'),
             func.avg(TipEntry.total_tips).label('avg_tips'),
             func.avg(TipEntry.hours_worked).label('avg_hours'),
-            func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour')
+            func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour'),
+            func.avg(TipEntry.sales_amount).label('avg_sales'),
+            func.avg(TipEntry.tip_percentage).label('avg_tip_percentage')
         )
         
         # Role-based filtering
@@ -339,7 +386,9 @@ def get_weekday_stats():
                 'avg_card': round(float(stat.avg_card or 0), 2),
                 'avg_tips': round(float(stat.avg_tips or 0), 2),
                 'avg_hours': round(float(stat.avg_hours or 0), 2),
-                'avg_tips_per_hour': round(float(stat.avg_tips_per_hour or 0), 2)
+                'avg_tips_per_hour': round(float(stat.avg_tips_per_hour or 0), 2),
+                'avg_sales': round(float(stat.avg_sales or 0), 2),
+                'avg_tip_percentage': round(float(stat.avg_tip_percentage or 0), 2)
             })
         
         return jsonify({'weekday_stats': result})
@@ -365,7 +414,8 @@ def get_breakdown_stats():
         query = db.session.query(
             func.sum(TipEntry.cash_tips).label('total_cash'),
             func.sum(TipEntry.card_tips).label('total_card'),
-            func.sum(TipEntry.total_tips).label('total_tips')
+            func.sum(TipEntry.total_tips).label('total_tips'),
+            func.sum(TipEntry.sales_amount).label('total_sales')
         )
         
         # Role-based filtering
@@ -388,8 +438,9 @@ def get_breakdown_stats():
             total_cash = float(result.total_cash or 0)
             total_card = float(result.total_card or 0)
             total_tips = float(result.total_tips or 0)
+            total_sales = float(result.total_sales or 0)
         else:
-            total_cash = total_card = total_tips = 0.0
+            total_cash = total_card = total_tips = total_sales = 0.0
         
         return jsonify({
             'breakdown': {
@@ -397,7 +448,9 @@ def get_breakdown_stats():
                 'card_tips': total_card,
                 'total_tips': total_tips,
                 'cash_percentage': round((total_cash / total_tips * 100) if total_tips > 0 else 0, 1),
-                'card_percentage': round((total_card / total_tips * 100) if total_tips > 0 else 0, 1)
+                'card_percentage': round((total_card / total_tips * 100) if total_tips > 0 else 0, 1),
+                'total_sales': total_sales,
+                'tip_percentage': round((total_tips / total_sales * 100), 2) if total_sales > 0 else 0
             }
         })
         

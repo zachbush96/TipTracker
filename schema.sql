@@ -30,10 +30,13 @@ create table if not exists public.tip_entries (
   cash_tips numeric(10,2) not null default 0 check (cash_tips >= 0),
   card_tips numeric(10,2) not null default 0 check (card_tips >= 0),
   hours_worked numeric(4,2) not null check (hours_worked > 0 and hours_worked <= 24),
+  section text,
+  sales_amount numeric(10,2) not null default 0 check (sales_amount >= 0),
   work_date date not null,
   weekday smallint not null check (weekday between 0 and 6), -- 0=Mon .. 6=Sun
   total_tips numeric(10,2) not null default 0,
   tips_per_hour numeric(8,2) not null default 0,
+  tip_percentage numeric(5,2) not null default 0,
   comments text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -52,6 +55,10 @@ begin
   new.total_tips := coalesce(new.cash_tips,0) + coalesce(new.card_tips,0);
   new.tips_per_hour := case
     when coalesce(new.hours_worked,0) > 0 then round(new.total_tips / new.hours_worked, 2)
+    else 0
+  end;
+  new.tip_percentage := case
+    when coalesce(new.sales_amount,0) > 0 then round(new.total_tips / new.sales_amount * 100, 2)
     else 0
   end;
   new.updated_at := now();
@@ -133,11 +140,14 @@ select
   u.email as user_email,
   te.work_date,
   te.weekday,
+  te.section,
+  te.sales_amount,
   te.cash_tips,
   te.card_tips,
   te.total_tips,
   te.hours_worked,
   te.tips_per_hour,
+  te.tip_percentage,
   case te.weekday
     when 0 then 'Monday'
     when 1 then 'Tuesday'
