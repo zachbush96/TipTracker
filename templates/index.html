@@ -181,6 +181,11 @@
                                     <label for="tipDate" class="form-label">Date</label>
                                     <input type="date" class="form-control" id="tipDate">
                                 </div>
+                                <div class="mb-3">
+                                    <label for="section" class="form-label">Section</label>
+                                    <input type="text" class="form-control" id="section" list="sectionsList" placeholder="e.g., cocktail">
+                                    <datalist id="sectionsList"></datalist>
+                                </div>
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="cashTips" class="form-label">Cash Tips ($)</label>
@@ -189,9 +194,13 @@
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label for="cardTips" class="form-label">Card Tips ($)</label>
-                                        <input type="number" class="form-control" id="cardTips" 
+                                        <input type="number" class="form-control" id="cardTips"
                                                step="0.01" min="0" placeholder="0.00">
                                     </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="totalSales" class="form-label">Total Sales ($)</label>
+                                    <input type="number" class="form-control" id="totalSales" step="0.01" min="0" placeholder="0.00">
                                 </div>
                                 <div class="mb-3">
                                     <label for="hoursWorked" class="form-label">Hours Worked</label>
@@ -284,9 +293,12 @@
                                         <tr>
                                             <th>Date</th>
                                             <th id="userColumnHeader" class="d-none">User</th>
+                                            <th>Section</th>
+                                            <th>Sales</th>
                                             <th>Cash</th>
                                             <th>Card</th>
                                             <th>Total</th>
+                                            <th>Tip %</th>
                                             <th>Hours</th>
                                             <th>Tips/Hour</th>
                                             <th>Comments</th>
@@ -295,7 +307,7 @@
                                     </thead>
                                     <tbody id="tipsTableBody">
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted">Loading...</td>
+                                            <td colspan="11" class="text-center text-muted">Loading...</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -351,6 +363,18 @@
                         </div>
                         <div class="card-body">
                             <canvas id="hourlyChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tip Percentage -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Tip Percentage</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="percentageChart" width="400" height="200"></canvas>
                         </div>
                     </div>
                 </div>
