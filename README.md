@@ -12,6 +12,7 @@ A full-stack web application for restaurant servers to track their tips with rol
   - Cash vs card breakdown
   - Weekday averages
   - Tips per hour calculations
+  - Average tips by section
 - **Date Filtering**: Last 7/30/90 days or custom date ranges
 - **Demo Mode**: Test the application with synthetic data
 - **Responsive Design**: Works on desktop and mobile devices
