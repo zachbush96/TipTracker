@@ -392,7 +392,56 @@ def get_weekday_stats():
             })
         
         return jsonify({'weekday_stats': result})
-        
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_bp.route('/stats/section', methods=['GET'])
+@require_auth
+def get_section_stats():
+    """Get average tips per section"""
+    try:
+        demo_mode = request.args.get('demo', 'false').lower() == 'true'
+        if demo_mode:
+            return jsonify(get_demo_data('section_stats'))
+
+        current_user = get_current_user()
+        if not current_user:
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # Build query for section averages
+        query = db.session.query(
+            TipEntry.section,
+            func.avg(TipEntry.total_tips).label('avg_tips')
+        ).filter(TipEntry.section.isnot(None))
+
+        # Role-based filtering
+        user = User.query.filter_by(id=current_user['id']).first()
+        if not user or user.role != 'manager':
+            query = query.filter(TipEntry.user_id == current_user['id'])
+
+        # Date filtering (default last 90 days)
+        days = request.args.get('days', '90')
+        try:
+            days_int = int(days)
+            start_date = date.today() - timedelta(days=days_int)
+            query = query.filter(TipEntry.work_date >= start_date)
+        except ValueError:
+            pass
+
+        section_stats = query.group_by(TipEntry.section).order_by(TipEntry.section).all()
+
+        result = [
+            {
+                'section': stat.section,
+                'avg_tips': round(float(stat.avg_tips or 0), 2)
+            }
+            for stat in section_stats
+        ]
+
+        return jsonify({'section_stats': result})
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

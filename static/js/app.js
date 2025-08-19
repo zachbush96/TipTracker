@@ -562,7 +562,8 @@ async function loadCharts() {
         loadBreakdownChart(),
         loadWeekdayChart(),
         loadHourlyChart(),
-        loadPercentageChart()
+        loadPercentageChart(),
+        loadSectionChart()
     ]);
 }
 
@@ -830,6 +831,60 @@ async function loadPercentageChart() {
         }
     } catch (error) {
         console.error('Failed to load percentage chart:', error);
+    }
+}
+
+// Load average tips by section chart
+async function loadSectionChart() {
+    try {
+        const params = getDateFilterParams();
+        const response = await fetch(`/api/stats/section?${params}`);
+
+        if (response.ok) {
+            const data = await response.json();
+            const sectionStats = data.section_stats;
+
+            const ctx = document.getElementById('sectionChart').getContext('2d');
+
+            if (charts.section) {
+                charts.section.destroy();
+            }
+
+            charts.section = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sectionStats.map(stat => stat.section || 'Unknown'),
+                    datasets: [{
+                        label: 'Avg Tips',
+                        data: sectionStats.map(stat => stat.avg_tips),
+                        backgroundColor: '#6f42c1',
+                        borderColor: '#6f42c1',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Failed to load section chart:', error);
     }
 }
 

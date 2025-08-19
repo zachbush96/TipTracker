@@ -113,5 +113,15 @@ def get_demo_data(data_type):
                 'tip_percentage': tip_percentage
             }
         }
-    
+
+    elif data_type == 'section_stats':
+        sections = ['cocktail', 'server 4', 'patio', 'bar']
+        section_stats = []
+        for sec in sections:
+            section_stats.append({
+                'section': sec,
+                'avg_tips': round(random.uniform(50, 150), 2)
+            })
+        return {'section_stats': section_stats}
+
     return {}
