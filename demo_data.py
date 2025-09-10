@@ -100,6 +100,8 @@ def get_demo_data(data_type):
         total_card = round(random.uniform(1200, 2500), 2)
         total_tips = total_cash + total_card
         total_sales = round(random.uniform(8000, 15000), 2)
+        total_hours = round(random.uniform(120, 240), 2)
+        avg_tips_per_hour = round(total_tips / total_hours, 2)
         tip_percentage = round(total_tips / total_sales * 100, 2)
 
         return {
@@ -110,7 +112,9 @@ def get_demo_data(data_type):
                 'cash_percentage': round((total_cash / total_tips * 100), 1),
                 'card_percentage': round((total_card / total_tips * 100), 1),
                 'total_sales': total_sales,
-                'tip_percentage': tip_percentage
+                'tip_percentage': tip_percentage,
+                'total_hours': total_hours,
+                'avg_tips_per_hour': avg_tips_per_hour
             }
         }
 
