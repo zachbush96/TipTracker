@@ -464,7 +464,8 @@ def get_breakdown_stats():
             func.sum(TipEntry.cash_tips).label('total_cash'),
             func.sum(TipEntry.card_tips).label('total_card'),
             func.sum(TipEntry.total_tips).label('total_tips'),
-            func.sum(TipEntry.sales_amount).label('total_sales')
+            func.sum(TipEntry.sales_amount).label('total_sales'),
+            func.sum(TipEntry.hours_worked).label('total_hours')
         )
         
         # Role-based filtering
@@ -488,8 +489,11 @@ def get_breakdown_stats():
             total_card = float(result.total_card or 0)
             total_tips = float(result.total_tips or 0)
             total_sales = float(result.total_sales or 0)
+            total_hours = float(result.total_hours or 0)
         else:
-            total_cash = total_card = total_tips = total_sales = 0.0
+            total_cash = total_card = total_tips = total_sales = total_hours = 0.0
+
+        avg_tips_per_hour = round((total_tips / total_hours), 2) if total_hours > 0 else 0
         
         return jsonify({
             'breakdown': {
@@ -499,7 +503,9 @@ def get_breakdown_stats():
                 'cash_percentage': round((total_cash / total_tips * 100) if total_tips > 0 else 0, 1),
                 'card_percentage': round((total_card / total_tips * 100) if total_tips > 0 else 0, 1),
                 'total_sales': total_sales,
-                'tip_percentage': round((total_tips / total_sales * 100), 2) if total_sales > 0 else 0
+                'tip_percentage': round((total_tips / total_sales * 100), 2) if total_sales > 0 else 0,
+                'total_hours': total_hours,
+                'avg_tips_per_hour': avg_tips_per_hour
             }
         })
         
