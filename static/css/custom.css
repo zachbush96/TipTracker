@@ -114,12 +114,9 @@ body {
         gap: 0.5rem;
     }
     
-    #quickStats .row {
+    #quickStats .row,
+    #publicQuickStats .row {
         text-align: center;
-    }
-    
-    #quickStats .col-4 {
-        margin-bottom: 1rem;
     }
 }
 
