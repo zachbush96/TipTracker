@@ -129,30 +129,30 @@ async function loadDemoQuickStats(elementId) {
             const breakdown = data.breakdown;
             document.getElementById(elementId).innerHTML = `
                 <div class="row">
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-success">Total Tips</h6>
                         <h4>$${breakdown.total_tips.toFixed(2)}</h4>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-info">Cash</h6>
                         <h5>$${breakdown.cash_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.cash_percentage}%</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-warning">Card</h6>
                         <h5>$${breakdown.card_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.card_percentage}%</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-primary">Tip %</h6>
                         <h5>${breakdown.tip_percentage.toFixed(2)}%</h5>
                         <small class="text-muted">on $${breakdown.total_sales.toFixed(2)}</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-secondary">Hours</h6>
                         <h5>${breakdown.total_hours.toFixed(2)}</h5>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-danger">Avg $/hr</h6>
                         <h5>$${breakdown.avg_tips_per_hour.toFixed(2)}</h5>
                     </div>
@@ -441,30 +441,30 @@ async function loadQuickStats() {
             
             document.getElementById('quickStats').innerHTML = `
                 <div class="row">
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-success">Total Tips</h6>
                         <h4>$${breakdown.total_tips.toFixed(2)}</h4>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-info">Cash</h6>
                         <h5>$${breakdown.cash_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.cash_percentage}%</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-warning">Card</h6>
                         <h5>$${breakdown.card_tips.toFixed(2)}</h5>
                         <small class="text-muted">${breakdown.card_percentage}%</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-primary">Tip %</h6>
                         <h5>${breakdown.tip_percentage.toFixed(2)}%</h5>
                         <small class="text-muted">on $${breakdown.total_sales.toFixed(2)}</small>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-secondary">Hours</h6>
                         <h5>${breakdown.total_hours.toFixed(2)}</h5>
                     </div>
-                    <div class="col-2">
+                    <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-danger">Avg $/hr</h6>
                         <h5>$${breakdown.avg_tips_per_hour.toFixed(2)}</h5>
                     </div>
