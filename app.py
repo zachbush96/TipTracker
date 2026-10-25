@@ -38,14 +38,8 @@ app.config["SUPABASE_ANON_KEY"] = os.environ.get(
 )
 
 # ---------- Candidate Postgres URIs (always sslmode=require) ----------
-PRIMARY_DB_URI = os.environ.get(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:GoDaddy500!@db.okblwnznvxrrubgmrkig.supabase.co:5432/postgres?sslmode=require",
-)
-FALLBACK_DB_URI = os.environ.get(
-    "DATABASE_URL_FALLBACK",
-    "postgresql+psycopg2://postgres:GoDaddy500!@db.okblwnznvxrrubgmrkig.supabase.co:6543/postgres?sslmode=require",
-)
+PRIMARY_DB_URI = os.environ.get("DATABASE_URL", "")
+FALLBACK_DB_URI = os.environ.get("DATABASE_URL_FALLBACK", "")
 
 # ---------- Tunables ----------
 CONNECT_TIMEOUT = int(os.environ.get("DB_CONNECT_TIMEOUT", "6"))  # sec
@@ -98,12 +92,14 @@ def _can_connect(uri: str, label: str) -> bool:
     return False
 
 def _pick_working_db_uri() -> Tuple[str, Literal["primary","fallback","sqlite"]]:
+    if PRIMARY_DB_URI.startswith("sqlite:"):
+        return PRIMARY_DB_URI, "sqlite"
     # Try primary (5432)
-    if _can_connect(PRIMARY_DB_URI, "primary"):
+    if PRIMARY_DB_URI and _can_connect(PRIMARY_DB_URI, "primary"):
         return PRIMARY_DB_URI, "primary"
 
     logger.warning("Primary failed; trying pooled fallback (6543)...")
-    if _can_connect(FALLBACK_DB_URI, "fallback"):
+    if FALLBACK_DB_URI and _can_connect(FALLBACK_DB_URI, "fallback"):
         return FALLBACK_DB_URI, "fallback"
 
     if ALLOW_SQLITE_FALLBACK:
@@ -155,6 +151,11 @@ with app.app_context():
     import models  # noqa: E402
     import api     # noqa: E402
     import auth    # noqa: E402
+    import integrations
+    app.config["INTEGRATIONS_DB_READY"] = DB_MODE != "sqlite" or PRIMARY_DB_URI.startswith("sqlite:")
+    app.config["INTEGRATIONS_ENABLED"] = os.environ.get("INTEGRATIONS_ENABLED") == "1"
+    app.config["INTEGRATIONS_CREATE_ENABLED"] = os.environ.get("INTEGRATIONS_CREATE_ENABLED") == "1"
+    app.register_blueprint(integrations.integration_bp, url_prefix="/api/integrations/v1")
 
     app.register_blueprint(api.api_bp, url_prefix="/api")
     app.register_blueprint(auth.auth_bp, url_prefix="/auth")
@@ -198,9 +199,9 @@ with app.app_context():
     except Exception as e:
         logger.warning("Engine init ping failed: %s", e)
 
-    # Create tables (works for SQLite and Postgres)
+    # Existing browser tables retain their startup behavior.
     try:
-        db.create_all()
+        db.metadata.create_all(db.engine, tables=[models.User.__table__, models.TipEntry.__table__])
     except Exception as e:
         logger.error("db.create_all() failed: %s", e)
         if RAISE_ON_DB_FAILURE:

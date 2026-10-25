@@ -37,16 +37,11 @@ class TipEntry(db.Model):
     
     def __init__(self, **kwargs):
         super(TipEntry, self).__init__(**kwargs)
-        # Compute derived fields
-        self.total_tips = float(self.cash_tips or 0) + float(self.card_tips or 0)
-        if self.hours_worked and self.hours_worked > 0:
-            self.tips_per_hour = round(self.total_tips / float(self.hours_worked), 2)
-        else:
-            self.tips_per_hour = 0
-        if self.sales_amount and float(self.sales_amount) > 0:
-            self.tip_percentage = round(self.total_tips / float(self.sales_amount) * 100, 2)
-        else:
-            self.tip_percentage = 0
+        from tip_domain import calculate_totals
+        for field, value in calculate_totals(
+            self.cash_tips, self.card_tips, self.hours_worked, self.sales_amount
+        ).items():
+            setattr(self, field, value)
 
     def to_dict(self):
         return {
