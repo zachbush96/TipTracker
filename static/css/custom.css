@@ -131,6 +131,20 @@ canvas {
     padding: 0.25rem 0.5rem;
 }
 
+/* Footer styling */
+.footer {
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.footer h6 {
+    color: var(--bs-light);
+    margin-bottom: 0.75rem;
+}
+
+.footer a:hover {
+    color: var(--bs-primary) !important;
+}
+
 /* Custom color variables for consistency */
 :root {
     --tip-primary: #0d6efd;

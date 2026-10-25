@@ -23,13 +23,15 @@ class TipEntry(db.Model):
     user_id = db.Column(db.String, db.ForeignKey('users.id'), nullable=False)
     cash_tips = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     card_tips = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+    tip_out = db.Column(db.Numeric(10, 2), nullable=False, default=0)  # Amount given to bartenders/bussers/food runners
     hours_worked = db.Column(db.Numeric(4, 2), nullable=False)
     section = db.Column(db.String(50), nullable=True)
     sales_amount = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     work_date = db.Column(db.Date, nullable=False)
     weekday = db.Column(db.Integer, nullable=False)  # 0=Monday, 6=Sunday
-    total_tips = db.Column(db.Numeric(10, 2), nullable=False)  # Computed field
-    tips_per_hour = db.Column(db.Numeric(8, 2), nullable=False)  # Computed field
+    total_tips = db.Column(db.Numeric(10, 2), nullable=False)  # Computed field (gross tips)
+    net_tips = db.Column(db.Numeric(10, 2), nullable=False, default=0)  # Computed field (total_tips - tip_out)
+    tips_per_hour = db.Column(db.Numeric(8, 2), nullable=False)  # Computed field (based on net_tips)
     tip_percentage = db.Column(db.Numeric(5, 2), nullable=False)  # Computed field
     comments = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=func.now())
@@ -37,9 +39,15 @@ class TipEntry(db.Model):
     
     def __init__(self, **kwargs):
         super(TipEntry, self).__init__(**kwargs)
+        self.recalculate_derived_fields()
+
+    def recalculate_derived_fields(self):
+        """Recalculate all derived fields. Call this after updating tip amounts."""
+        from decimal import Decimal
+        self.net_tips = Decimal(str(self.cash_tips or 0)) + Decimal(str(self.card_tips or 0)) - Decimal(str(self.tip_out or 0))
         from tip_domain import calculate_totals
         for field, value in calculate_totals(
-            self.cash_tips, self.card_tips, self.hours_worked, self.sales_amount
+            self.cash_tips, self.card_tips, self.hours_worked, self.sales_amount, self.tip_out
         ).items():
             setattr(self, field, value)
 
@@ -49,12 +57,14 @@ class TipEntry(db.Model):
             'user_id': self.user_id,
             'cash_tips': float(self.cash_tips),
             'card_tips': float(self.card_tips),
+            'tip_out': float(self.tip_out or 0),
             'hours_worked': float(self.hours_worked),
             'section': self.section,
             'sales_amount': float(self.sales_amount),
             'work_date': self.work_date.isoformat(),
             'weekday': self.weekday,
             'total_tips': float(self.total_tips),
+            'net_tips': float(self.net_tips or 0),
             'tips_per_hour': float(self.tips_per_hour),
             'tip_percentage': float(self.tip_percentage),
             'comments': self.comments,

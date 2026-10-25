@@ -1,7 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import os
+import csv
+import io
+import logging
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
 from app import db
@@ -44,6 +47,17 @@ def validate_tip_entry(data):
     except (ValueError, TypeError):
         errors.append('Hours worked must be a valid number')
 
+    # Validate tip_out
+    tip_out = data.get('tip_out', 0)
+    if tip_out is None:
+        tip_out = 0
+    try:
+        tip_out = float(tip_out)
+        if tip_out < 0:
+            errors.append('Tip out cannot be negative')
+    except (ValueError, TypeError):
+        errors.append('Tip out must be a valid number')
+
     # Validate sales_amount
     sales_amount = data.get('sales_amount', 0)
     try:
@@ -83,6 +97,7 @@ def validate_tip_entry(data):
     return errors, {
         'cash_tips': round(cash_tips, 2),
         'card_tips': round(card_tips, 2),
+        'tip_out': round(tip_out, 2),
         'hours_worked': round(hours_worked, 2),
         'sales_amount': round(sales_amount, 2),
         'section': section,
@@ -127,6 +142,7 @@ def create_tip_entry():
             user_id=current_user['id'],
             cash_tips=Decimal(str(validated_data['cash_tips'])),
             card_tips=Decimal(str(validated_data['card_tips'])),
+            tip_out=Decimal(str(validated_data['tip_out'])),
             hours_worked=Decimal(str(validated_data['hours_worked'])),
             sales_amount=Decimal(str(validated_data['sales_amount'])),
             section=validated_data.get('section'),
@@ -235,6 +251,144 @@ def delete_tip_entry(tip_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/tips/export', methods=['GET'])
+@require_auth
+def export_tips_csv():
+    """Export the current user's tip data as a CSV download"""
+    try:
+        demo_mode = request.args.get('demo', 'false').lower() == 'true'
+
+        weekday_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+        def sanitize_csv_field(value):
+            if not value:
+                return ''
+            s = str(value)
+            if s and s[0] in ('=', '+', '-', '@', '\t', '\r'):
+                return "'" + s
+            return s
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Date', 'Weekday', 'Section', 'Cash Tips', 'Card Tips',
+            'Total Tips', 'Tip Out', 'Net Tips', 'Sales Amount',
+            'Tip Percentage', 'Hours Worked', 'Tips Per Hour',
+            'Comments', 'Created At', 'Updated At'
+        ])
+
+        if demo_mode:
+            demo_result = get_demo_data('tips')
+            demo_tips = demo_result.get('tips', [])
+
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            days = request.args.get('days')
+
+            if start_date_str and end_date_str:
+                try:
+                    filter_start = date.fromisoformat(start_date_str)
+                    filter_end = date.fromisoformat(end_date_str)
+                    demo_tips = [t for t in demo_tips if filter_start <= date.fromisoformat(t['work_date']) <= filter_end]
+                except ValueError:
+                    pass
+            elif days:
+                try:
+                    days_int = int(days)
+                    filter_start = date.today() - timedelta(days=days_int)
+                    demo_tips = [t for t in demo_tips if date.fromisoformat(t['work_date']) >= filter_start]
+                except ValueError:
+                    pass
+
+            demo_tips.sort(key=lambda t: t['work_date'], reverse=True)
+
+            for tip in demo_tips:
+                wd = tip.get('weekday', -1)
+                writer.writerow([
+                    tip.get('work_date', ''),
+                    weekday_names[wd] if 0 <= wd <= 6 else '',
+                    sanitize_csv_field(tip.get('section', '')),
+                    float(tip.get('cash_tips', 0)),
+                    float(tip.get('card_tips', 0)),
+                    float(tip.get('total_tips', 0)),
+                    float(tip.get('tip_out', 0)),
+                    float(tip.get('net_tips', 0)),
+                    float(tip.get('sales_amount', 0)),
+                    float(tip.get('tip_percentage', 0)),
+                    float(tip.get('hours_worked', 0)),
+                    float(tip.get('tips_per_hour', 0)),
+                    sanitize_csv_field(tip.get('comments', '')),
+                    tip.get('created_at', ''),
+                    tip.get('updated_at', '')
+                ])
+        else:
+            current_user = get_current_user()
+            if not current_user:
+                return jsonify({'error': 'Authentication required'}), 401
+
+            query = TipEntry.query.filter_by(user_id=current_user['id'])
+
+            user = User.query.filter_by(id=current_user['id']).first()
+            if user and user.role == 'manager':
+                query = TipEntry.query
+
+            logging.debug(f"CSV export: user_id={current_user['id']}, role={user.role if user else 'no-user-record'}")
+
+            start_date_str = request.args.get('start_date')
+            end_date_str = request.args.get('end_date')
+            days = request.args.get('days')
+
+            if start_date_str and end_date_str:
+                try:
+                    filter_start = date.fromisoformat(start_date_str)
+                    filter_end = date.fromisoformat(end_date_str)
+                    query = query.filter(and_(TipEntry.work_date >= filter_start, TipEntry.work_date <= filter_end))
+                except ValueError:
+                    pass
+            elif days:
+                try:
+                    days_int = int(days)
+                    filter_start = date.today() - timedelta(days=days_int)
+                    query = query.filter(TipEntry.work_date >= filter_start)
+                except ValueError:
+                    pass
+
+            tips = query.order_by(TipEntry.work_date.desc()).all()
+            logging.debug(f"CSV export: found {len(tips)} tips, days={days}, start_date={start_date_str}, end_date={end_date_str}")
+
+            for tip in tips:
+                writer.writerow([
+                    tip.work_date.isoformat(),
+                    weekday_names[tip.weekday] if 0 <= tip.weekday <= 6 else '',
+                    sanitize_csv_field(tip.section),
+                    float(tip.cash_tips),
+                    float(tip.card_tips),
+                    float(tip.total_tips),
+                    float(tip.tip_out or 0),
+                    float(tip.net_tips or 0),
+                    float(tip.sales_amount),
+                    float(tip.tip_percentage),
+                    float(tip.hours_worked),
+                    float(tip.tips_per_hour),
+                    sanitize_csv_field(tip.comments),
+                    tip.created_at.isoformat() if tip.created_at else '',
+                    tip.updated_at.isoformat() if tip.updated_at else ''
+                ])
+
+        output.seek(0)
+        today = date.today().isoformat()
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=tip_data_{today}.csv'
+            }
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @api_bp.route('/sections', methods=['GET'])
 @require_auth
 def get_sections():
@@ -277,7 +431,9 @@ def get_daily_stats():
             TipEntry.work_date,
             func.sum(TipEntry.cash_tips).label('total_cash'),
             func.sum(TipEntry.card_tips).label('total_card'),
+            func.sum(TipEntry.tip_out).label('total_tip_out'),
             func.sum(TipEntry.total_tips).label('total_tips'),
+            func.sum(TipEntry.net_tips).label('total_net_tips'),
             func.sum(TipEntry.hours_worked).label('total_hours'),
             func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour'),
             func.sum(TipEntry.sales_amount).label('total_sales')
@@ -314,12 +470,16 @@ def get_daily_stats():
         for stat in daily_stats:
             total_sales = float(stat.total_sales or 0)
             total_tips = float(stat.total_tips or 0)
+            total_tip_out = float(stat.total_tip_out or 0)
+            total_net_tips = float(stat.total_net_tips or 0)
             avg_tip_percentage = round((total_tips / total_sales * 100), 2) if total_sales > 0 else 0
             result.append({
                 'date': stat.work_date.isoformat(),
                 'total_cash': float(stat.total_cash or 0),
                 'total_card': float(stat.total_card or 0),
+                'total_tip_out': total_tip_out,
                 'total_tips': total_tips,
+                'total_net_tips': total_net_tips,
                 'total_hours': float(stat.total_hours or 0),
                 'avg_tips_per_hour': float(stat.avg_tips_per_hour or 0),
                 'total_sales': total_sales,
@@ -350,7 +510,9 @@ def get_weekday_stats():
             TipEntry.weekday,
             func.avg(TipEntry.cash_tips).label('avg_cash'),
             func.avg(TipEntry.card_tips).label('avg_card'),
+            func.avg(TipEntry.tip_out).label('avg_tip_out'),
             func.avg(TipEntry.total_tips).label('avg_tips'),
+            func.avg(TipEntry.net_tips).label('avg_net_tips'),
             func.avg(TipEntry.hours_worked).label('avg_hours'),
             func.avg(TipEntry.tips_per_hour).label('avg_tips_per_hour'),
             func.avg(TipEntry.sales_amount).label('avg_sales'),
@@ -362,15 +524,26 @@ def get_weekday_stats():
         if not user or user.role != 'manager':
             query = query.filter(TipEntry.user_id == current_user['id'])
         
-        # Date filtering (last 90 days by default for meaningful averages)
+        # Date filtering
         days = request.args.get('days', '90')
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
         try:
-            days_int = int(days)
-            start_date = date.today() - timedelta(days=days_int)
-            query = query.filter(TipEntry.work_date >= start_date)
+            if start_date_str and end_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                query = query.filter(and_(
+                    TipEntry.work_date >= start_date,
+                    TipEntry.work_date <= end_date
+                ))
+            else:
+                days_int = int(days)
+                start_date = date.today() - timedelta(days=days_int)
+                query = query.filter(TipEntry.work_date >= start_date)
         except ValueError:
             pass
-        
+
         # Group by weekday
         weekday_stats = query.group_by(TipEntry.weekday).order_by(TipEntry.weekday).all()
         
@@ -384,7 +557,9 @@ def get_weekday_stats():
                 'weekday_name': weekday_names[stat.weekday],
                 'avg_cash': round(float(stat.avg_cash or 0), 2),
                 'avg_card': round(float(stat.avg_card or 0), 2),
+                'avg_tip_out': round(float(stat.avg_tip_out or 0), 2),
                 'avg_tips': round(float(stat.avg_tips or 0), 2),
+                'avg_net_tips': round(float(stat.avg_net_tips or 0), 2),
                 'avg_hours': round(float(stat.avg_hours or 0), 2),
                 'avg_tips_per_hour': round(float(stat.avg_tips_per_hour or 0), 2),
                 'avg_sales': round(float(stat.avg_sales or 0), 2),
@@ -423,10 +598,21 @@ def get_section_stats():
 
         # Date filtering (default last 90 days)
         days = request.args.get('days', '90')
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
         try:
-            days_int = int(days)
-            start_date = date.today() - timedelta(days=days_int)
-            query = query.filter(TipEntry.work_date >= start_date)
+            if start_date_str and end_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                query = query.filter(and_(
+                    TipEntry.work_date >= start_date,
+                    TipEntry.work_date <= end_date
+                ))
+            else:
+                days_int = int(days)
+                start_date = date.today() - timedelta(days=days_int)
+                query = query.filter(TipEntry.work_date >= start_date)
         except ValueError:
             pass
 
@@ -463,7 +649,9 @@ def get_breakdown_stats():
         query = db.session.query(
             func.sum(TipEntry.cash_tips).label('total_cash'),
             func.sum(TipEntry.card_tips).label('total_card'),
+            func.sum(TipEntry.tip_out).label('total_tip_out'),
             func.sum(TipEntry.total_tips).label('total_tips'),
+            func.sum(TipEntry.net_tips).label('total_net_tips'),
             func.sum(TipEntry.sales_amount).label('total_sales'),
             func.sum(TipEntry.hours_worked).label('total_hours')
         )
@@ -475,31 +663,46 @@ def get_breakdown_stats():
         
         # Date filtering
         days = request.args.get('days', '30')
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
         try:
-            days_int = int(days)
-            start_date = date.today() - timedelta(days=days_int)
-            query = query.filter(TipEntry.work_date >= start_date)
+            if start_date_str and end_date_str:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                query = query.filter(and_(
+                    TipEntry.work_date >= start_date,
+                    TipEntry.work_date <= end_date
+                ))
+            else:
+                days_int = int(days)
+                start_date = date.today() - timedelta(days=days_int)
+                query = query.filter(TipEntry.work_date >= start_date)
         except ValueError:
             pass
-        
+
         result = query.first()
         
         if result:
             total_cash = float(result.total_cash or 0)
             total_card = float(result.total_card or 0)
+            total_tip_out = float(result.total_tip_out or 0)
             total_tips = float(result.total_tips or 0)
+            total_net_tips = float(result.total_net_tips or 0)
             total_sales = float(result.total_sales or 0)
             total_hours = float(result.total_hours or 0)
         else:
-            total_cash = total_card = total_tips = total_sales = total_hours = 0.0
+            total_cash = total_card = total_tip_out = total_tips = total_net_tips = total_sales = total_hours = 0.0
 
-        avg_tips_per_hour = round((total_tips / total_hours), 2) if total_hours > 0 else 0
+        avg_tips_per_hour = round((total_net_tips / total_hours), 2) if total_hours > 0 else 0
         
         return jsonify({
             'breakdown': {
                 'cash_tips': total_cash,
                 'card_tips': total_card,
+                'tip_out': total_tip_out,
                 'total_tips': total_tips,
+                'net_tips': total_net_tips,
                 'cash_percentage': round((total_cash / total_tips * 100) if total_tips > 0 else 0, 1),
                 'card_percentage': round((total_card / total_tips * 100) if total_tips > 0 else 0, 1),
                 'total_sales': total_sales,

@@ -13,7 +13,7 @@ from sqlalchemy.pool import NullPool
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # ---------- Logging ----------
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
@@ -29,13 +29,9 @@ CORS(app)
 
 # ---------- Supabase configuration (used by frontend and auth blueprint) ----------
 app.config["SUPABASE_URL"] = os.environ.get(
-    "SUPABASE_URL",
-    "https://okblwnznvxrrubgmrkig.supabase.co",
+    "SUPABASE_URL", os.environ.get("SUPABASE_REST_URL", "").removesuffix("/").removesuffix("/rest/v1")
 )
-app.config["SUPABASE_ANON_KEY"] = os.environ.get(
-    "SUPABASE_ANON_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9rYmx3bnpudnhycnViZ21ya2lnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2ODMzMzgsImV4cCI6MjA3MDI1OTMzOH0.UZE4OBf9cZG5TYYxBBStlmsiQk03vanmyMoSm4I36XE",
-)
+app.config["SUPABASE_ANON_KEY"] = os.environ.get("SUPABASE_ANON_KEY", "")
 
 # ---------- Candidate Postgres URIs (always sslmode=require) ----------
 PRIMARY_DB_URI = os.environ.get("DATABASE_URL", "")
@@ -49,17 +45,11 @@ ALLOW_SQLITE_FALLBACK = os.environ.get("ALLOW_SQLITE_FALLBACK", "1") not in ("0"
 RAISE_ON_DB_FAILURE = os.environ.get("RAISE_ON_DB_FAILURE", "0") in ("1", "true", "True")
 
 # Base connect args for psycopg2
-ENGINE_CONNECT_ARGS = {"connect_timeout": CONNECT_TIMEOUT}
+ENGINE_CONNECT_ARGS = {"connect_timeout": CONNECT_TIMEOUT, "sslmode": "require"}
 
 def _safe_uri(uri: str) -> str:
-    if "://" not in uri:
-        return uri
-    scheme, rest = uri.split("://", 1)
-    if "@" in rest and ":" in rest.split("@", 1)[0]:
-        creds, hostpart = rest.split("@", 1)
-        user = creds.split(":", 1)[0]
-        return f"{scheme}://{user}:****@{hostpart}"
-    return uri
+    # Never log connection details, including query-string credentials.
+    return "configured database"
 
 def _probe_once(uri: str) -> bool:
     eng = None
@@ -69,7 +59,7 @@ def _probe_once(uri: str) -> bool:
             conn.execute(text("SELECT 1"))
         return True
     except (OperationalError, SQLAlchemyError) as e:
-        logger.debug("Probe error: %s", repr(e))
+        logger.warning("Database probe failed (%s)", type(e).__name__)
         return False
     finally:
         try:
@@ -162,7 +152,18 @@ with app.app_context():
 
     @app.route("/")
     def index():
-        return render_template("index.html")
+        from datetime import datetime
+        return render_template("index.html", now=datetime.now())
+
+    @app.route("/terms")
+    def terms():
+        from datetime import datetime
+        return render_template("terms.html", now=datetime.now())
+
+    @app.route("/privacy")
+    def privacy():
+        from datetime import datetime
+        return render_template("privacy.html", now=datetime.now())
 
     @app.route("/healthz")
     def healthz():
@@ -174,7 +175,7 @@ with app.app_context():
                 conn.execute(text("SELECT 1"))
             ok = True
         except Exception as e:
-            err = str(e)
+            err = "Database unavailable"
         return jsonify(
             status="ok" if ok else "degraded",
             db_mode=DB_MODE,
@@ -194,15 +195,15 @@ with app.app_context():
         )
         # Touch the DB
         with db.engine.connect() as conn:
-            ver = conn.execute(text("SELECT version()")).scalar()
+            ver = conn.execute(text("SELECT sqlite_version()" if DB_MODE == "sqlite" else "SELECT version()")).scalar()
             logger.info("DB version: %s", ver)
     except Exception as e:
-        logger.warning("Engine init ping failed: %s", e)
+        logger.warning("Engine init ping failed (%s)", type(e).__name__)
 
     # Existing browser tables retain their startup behavior.
     try:
         db.metadata.create_all(db.engine, tables=[models.User.__table__, models.TipEntry.__table__])
     except Exception as e:
-        logger.error("db.create_all() failed: %s", e)
+        logger.error("db.create_all() failed (%s)", type(e).__name__)
         if RAISE_ON_DB_FAILURE:
             raise

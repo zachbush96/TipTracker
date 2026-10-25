@@ -24,12 +24,13 @@ document.addEventListener('DOMContentLoaded', function() {
 async function checkAuthStatus() {
     try {
         // First check for a Supabase session
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) throw error;
         const session = data.session;
 
         if (session) {
             // Sync session with Flask backend
-            await fetch('/auth/session', {
+            const response = await fetch('/auth/session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -38,6 +39,17 @@ async function checkAuthStatus() {
                     access_token: session.access_token
                 })
             });
+
+            if (!response.ok) {
+                showAuthRequired();
+                showAlert(
+                    response.status === 401 || response.status === 403
+                        ? 'Sign in was rejected. Please sign in again.'
+                        : 'Unable to verify your sign in right now. Please try again later.',
+                    'danger'
+                );
+                return;
+            }
 
             currentUser = {
                 id: session.user.id,
@@ -60,10 +72,13 @@ async function checkAuthStatus() {
             loadDashboard();
         } else {
             showAuthRequired();
+            if (response.status !== 401) {
+                showAlert('Unable to verify your sign in right now. Please try again later.', 'danger');
+            }
         }
     } catch (error) {
-        console.error('Auth check failed:', error);
         showAuthRequired();
+        showAlert('Unable to verify your sign in right now. Please try again later.', 'danger');
     }
 }
 
@@ -97,6 +112,7 @@ async function logout() {
 
 // Show/hide UI sections
 function showAuthRequired() {
+    currentUser = null;
     document.getElementById('authRequired').classList.remove('d-none');
     document.getElementById('mainApp').classList.add('d-none');
     document.getElementById('loginBtn').classList.remove('d-none');
@@ -233,7 +249,7 @@ async function loadUserRole() {
 
             const placeholder = document.querySelector('#tipsTableBody tr td');
             if (placeholder && placeholder.hasAttribute('colspan')) {
-                placeholder.setAttribute('colspan', data.role === 'manager' ? 12 : 11);
+                placeholder.setAttribute('colspan', data.role === 'manager' ? 14 : 13);
             }
         }
     } catch (error) {
@@ -270,6 +286,9 @@ function setupEventListeners() {
 
     // Feature request / bug report submission
     document.getElementById('requestForm').addEventListener('submit', handleRequestSubmission);
+
+    // CSV export button
+    document.getElementById('exportCsvBtn').addEventListener('click', exportTipsCsv);
 }
 
 // Handle tip form submission
@@ -284,6 +303,7 @@ async function handleTipSubmission(e) {
     const formData = {
         cash_tips: parseFloat(document.getElementById('cashTips').value) || 0,
         card_tips: parseFloat(document.getElementById('cardTips').value) || 0,
+        tip_out: parseFloat(document.getElementById('tipOut').value) || 0,
         hours_worked: parseFloat(document.getElementById('hoursWorked').value) || 0,
         sales_amount: parseFloat(document.getElementById('totalSales').value) || 0,
         section: document.getElementById('section').value.trim().toLowerCase(),
@@ -376,6 +396,7 @@ function handleDateFilterChange(e) {
     const customRange = document.getElementById('customDateRange');
     if (e.target.value === 'custom') {
         customRange.classList.remove('d-none');
+        handleCustomDateChange();
     } else {
         customRange.classList.add('d-none');
         loadDashboard();
@@ -439,11 +460,14 @@ async function loadQuickStats() {
             const data = await response.json();
             const breakdown = data.breakdown;
             
+            const tipOut = breakdown.tip_out || 0;
+            const netTips = breakdown.net_tips || breakdown.total_tips;
             document.getElementById('quickStats').innerHTML = `
                 <div class="row">
                     <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
-                        <h6 class="text-success">Total Tips</h6>
-                        <h4>$${breakdown.total_tips.toFixed(2)}</h4>
+                        <h6 class="text-success">Net Tips</h6>
+                        <h4>$${netTips.toFixed(2)}</h4>
+                        <small class="text-muted">Gross: $${breakdown.total_tips.toFixed(2)}</small>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-info">Cash</h6>
@@ -456,9 +480,8 @@ async function loadQuickStats() {
                         <small class="text-muted">${breakdown.card_percentage}%</small>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
-                        <h6 class="text-primary">Tip %</h6>
-                        <h5>${breakdown.tip_percentage.toFixed(2)}%</h5>
-                        <small class="text-muted">on $${breakdown.total_sales.toFixed(2)}</small>
+                        <h6 class="text-secondary">Tip Out</h6>
+                        <h5>$${tipOut.toFixed(2)}</h5>
                     </div>
                     <div class="col-6 col-md-4 col-lg-2 mb-3 mb-lg-0">
                         <h6 class="text-secondary">Hours</h6>
@@ -504,7 +527,7 @@ async function loadTipEntries() {
         const response = await fetch(`/api/tips?${params}`);
         const tbody = document.getElementById('tipsTableBody');
         const isManager = currentUser && currentUser.role === 'manager';
-        const columnCount = isManager ? 12 : 11;
+        const columnCount = isManager ? 14 : 13;
 
         if (response.ok) {
             const data = await response.json();
@@ -523,7 +546,8 @@ async function loadTipEntries() {
                     <td>$${tip.sales_amount.toFixed(2)}</td>
                     <td>$${tip.cash_tips.toFixed(2)}</td>
                     <td>$${tip.card_tips.toFixed(2)}</td>
-                    <td>$${tip.total_tips.toFixed(2)}</td>
+                    <td>$${(tip.tip_out || 0).toFixed(2)}</td>
+                    <td>$${(tip.net_tips || tip.total_tips).toFixed(2)}</td>
                     <td>${tip.tip_percentage.toFixed(2)}%</td>
                     <td>${tip.hours_worked.toFixed(2)}</td>
                     <td>$${tip.tips_per_hour.toFixed(2)}</td>
@@ -538,7 +562,7 @@ async function loadTipEntries() {
         console.error('Failed to load tips:', error);
         const tbody = document.getElementById('tipsTableBody');
         const isManager = currentUser && currentUser.role === 'manager';
-        const columnCount = isManager ? 12 : 11;
+        const columnCount = isManager ? 14 : 13;
         tbody.innerHTML = `<tr><td colspan="${columnCount}" class="text-center text-danger">Failed to load entries</td></tr>`;
     }
 }
@@ -926,4 +950,40 @@ function showAlert(message, type = 'info') {
             bsAlert.close();
         }
     }, 5000);
+}
+
+async function exportTipsCsv() {
+    console.log('Exporting tips to CSV...')
+    try {
+        const btn = document.getElementById('exportCsvBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Exporting...';
+
+        const params = getDateFilterParams();
+        const response = await fetch(`/api/tips/export?${params.toString()}`);
+        if (!response.ok) {
+            throw new Error('Failed to export tips');
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const disposition = response.headers.get('Content-Disposition');
+        const filename = disposition ? disposition.split('filename=')[1] : 'tip_data.csv';
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        showAlert('Tip data exported successfully!', 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showAlert('Failed to export tip data. Please try again.', 'danger');
+    } finally {
+        const btn = document.getElementById('exportCsvBtn');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download me-1"></i>Download CSV';
+    }
 }

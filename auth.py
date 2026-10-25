@@ -35,7 +35,7 @@ def set_session():
                     }
                     return jsonify({'success': True})
             except Exception as auth_error:
-                return jsonify({'error': f'Authentication failed: {str(auth_error)}'}), 401
+                return jsonify({'error': 'Authentication failed'}), 401
         
         return jsonify({'error': 'Invalid token'}), 401
     except Exception as e:

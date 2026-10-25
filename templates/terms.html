@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms of Service | Tip Tracker</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-dollar-sign me-2"></i>
+                Tip Tracker
+            </a>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="mb-4">Terms of Service</h1>
+                <p class="text-muted mb-4">Last Updated: March 10, 2026</p>
+
+                <h4>1. Acceptance of Terms</h4>
+                <p>By accessing or using Tip Tracker ("the Service"), operated by Presence Core LLC, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+
+                <h4>2. Description of Service</h4>
+                <p>Tip Tracker is a free web application that allows restaurant servers and staff to log, track, and analyze their tip earnings. The Service includes features such as tip entry logging, earnings analytics, and shift performance tracking.</p>
+
+                <h4>3. User Accounts</h4>
+                <p>To use certain features of the Service, you must sign in using Google OAuth. You are responsible for maintaining the confidentiality of your account and for all activities that occur under your account. You agree to provide accurate and complete information when creating your account.</p>
+
+                <h4>4. Acceptable Use</h4>
+                <p>You agree not to:</p>
+                <ul>
+                    <li>Use the Service for any unlawful purpose or in violation of any applicable laws</li>
+                    <li>Attempt to gain unauthorized access to the Service or its related systems</li>
+                    <li>Interfere with or disrupt the Service or servers connected to the Service</li>
+                    <li>Upload or transmit any malicious code, viruses, or harmful data</li>
+                    <li>Use the Service to harass, abuse, or harm others</li>
+                    <li>Attempt to reverse-engineer or decompile any part of the Service</li>
+                </ul>
+
+                <h4>5. User Data</h4>
+                <p>You retain ownership of any data you enter into the Service. By using the Service, you grant Presence Core LLC a limited license to store and process your data solely for the purpose of providing the Service to you. Your data will not be sold or shared with third parties. Please refer to our <a href="/privacy">Privacy Policy</a> for more details.</p>
+
+                <h4>6. Service Availability</h4>
+                <p>The Service is provided on an "as is" and "as available" basis. Presence Core LLC does not guarantee that the Service will be uninterrupted, error-free, or available at all times. We reserve the right to modify, suspend, or discontinue the Service at any time without prior notice.</p>
+
+                <h4>7. Limitation of Liability</h4>
+                <p>To the fullest extent permitted by law, Presence Core LLC shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, profits, or revenue, arising out of or related to your use of the Service.</p>
+
+                <h4>8. Disclaimer of Warranties</h4>
+                <p>The Service is provided without warranties of any kind, whether express or implied, including but not limited to implied warranties of merchantability, fitness for a particular purpose, and non-infringement. Presence Core LLC does not warrant that the Service will meet your requirements or that the results obtained from the Service will be accurate or reliable.</p>
+
+                <h4>9. Indemnification</h4>
+                <p>You agree to indemnify and hold harmless Presence Core LLC, its officers, directors, employees, and agents from any claims, damages, losses, or expenses arising out of your use of the Service or your violation of these Terms.</p>
+
+                <h4>10. Modifications to Terms</h4>
+                <p>Presence Core LLC reserves the right to modify these Terms of Service at any time. Changes will be effective upon posting the updated terms on this page. Your continued use of the Service after any changes constitutes acceptance of the new terms.</p>
+
+                <h4>11. Termination</h4>
+                <p>Presence Core LLC may terminate or suspend your access to the Service at any time, with or without cause, and with or without notice. Upon termination, your right to use the Service will immediately cease.</p>
+
+                <h4>12. Governing Law</h4>
+                <p>These Terms shall be governed by and construed in accordance with the laws of the Commonwealth of Kentucky, without regard to its conflict of law provisions.</p>
+
+                <h4>13. Contact Information</h4>
+                <p>If you have any questions about these Terms, please contact us at:</p>
+                <p>
+                    Presence Core LLC<br>
+                    Example Address, Sample City, ZZ 00000<br>
+                    Email: <a href="mailto:support@example.invalid">support@example.invalid</a><br>
+                    Phone: <a href="tel:+15550100199">(555) 010-0199</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer mt-5 py-4 border-top border-secondary">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h6 class="text-uppercase fw-bold">Presence Core LLC</h6>
+                    <p class="text-muted mb-1"><i class="fas fa-map-marker-alt me-2"></i>Example Address, Sample City, ZZ 00000</p>
+                    <p class="text-muted mb-1"><i class="fas fa-envelope me-2"></i><a href="mailto:support@example.invalid" class="text-muted text-decoration-none">support@example.invalid</a></p>
+                    <p class="text-muted mb-0"><i class="fas fa-phone me-2"></i><a href="tel:+15550100199" class="text-muted text-decoration-none">(555) 010-0199</a></p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6 class="text-uppercase fw-bold">Legal</h6>
+                    <p class="mb-1"><a href="/terms" class="text-muted text-decoration-none">Terms of Service</a></p>
+                    <p class="mb-0"><a href="/privacy" class="text-muted text-decoration-none">Privacy Policy</a></p>
+                </div>
+                <div class="col-md-4 mb-3 text-md-end">
+                    <p class="text-muted mb-0">&copy; {{ now.year }} Presence Core LLC. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script
+      src="https://widgets.leadconnectorhq.com/loader.js"
+      data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
+      data-widget-id="69b057ea0ec3007a5607058b">
+    </script>
+</body>
+</html>

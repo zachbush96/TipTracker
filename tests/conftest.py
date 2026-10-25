@@ -32,6 +32,7 @@ import time
 def client():
     app.config.update(TESTING=True, INTEGRATIONS_ENABLED=True, INTEGRATIONS_CREATE_ENABLED=True)
     with app.app_context():
+        assert db.engine.url.drivername == 'sqlite' and db.engine.url.database in ('', None, ':memory:')
         db.drop_all()
         db.create_all()
         for name in ['alice', 'bob']:

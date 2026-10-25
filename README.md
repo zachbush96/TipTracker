@@ -13,7 +13,7 @@ A full-stack web application for restaurant servers to track their tips with rol
   - Weekday averages
   - Tips per hour calculations
   - Average tips by section
-- **Date Filtering**: Last 7/30/90 days or custom date ranges
+- **Date Filtering**: Last 7/30/90/365 days or custom date ranges
 - **Demo Mode**: Test the application with synthetic data
 - **Responsive Design**: Works on desktop and mobile devices
 
@@ -62,7 +62,7 @@ A full-stack web application for restaurant servers to track their tips with rol
 
 ### 4. Environment Configuration
 
-1. Copy `.env.example` to `.env`
+1. Set environment variables using your hosting provider's secrets manager. For local development, copy `.env.example` to `.env` and load it into your environment before starting Gunicorn.
 2. Fill in your Supabase credentials:
    ```env
    SUPABASE_URL=https://your-project.supabase.co
@@ -75,12 +75,24 @@ A full-stack web application for restaurant servers to track their tips with rol
    - In Supabase, click "Connect" → "Connection string" → "Transaction pooler"
    - Replace `[YOUR-PASSWORD]` with your actual database password
 
+`SUPABASE_REST_URL` is also accepted when `SUPABASE_URL` is absent (a trailing
+`/rest/v1` is removed). Only the public anon key belongs in `SUPABASE_ANON_KEY`;
+it is intentionally sent to the browser. Never put a service-role key there.
+Database URLs have no hardcoded defaults. Optional `DATABASE_URL_FALLBACK`
+must point to the same database. Existing SQLite fallback behavior is retained;
+set `ALLOW_SQLITE_FALLBACK=0` to require the configured database.
+
+Run `python -m pytest -q` for isolated tests. Tests force in-memory SQLite and
+block outbound network calls; no Supabase data is created, updated, or deleted.
+The optional integration API stays disabled by default. No integration schema
+migration is applied automatically.
+
 ### 5. Install Dependencies
 
 The application uses these Python packages (install via pip):
 ```bash
 pip install flask flask-cors flask-sqlalchemy python-dotenv supabase
-
+```
 
 ## Scoped integration API (draft)
 
