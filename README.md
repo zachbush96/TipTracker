@@ -80,3 +80,9 @@ A full-stack web application for restaurant servers to track their tips with rol
 The application uses these Python packages (install via pip):
 ```bash
 pip install flask flask-cors flask-sqlalchemy python-dotenv supabase
+
+
+## Scoped integration API (draft)
+
+The opt-in API supports own-user reads, validated previews, and idempotent creation.
+Both feature flags default to disabled. See [the integration contract](docs/integrations.md) for routes, consent requirements, setup, and rollout gates.
