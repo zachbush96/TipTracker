@@ -75,6 +75,9 @@
                             <i class="fas fa-sign-out-alt"></i>
                             Logout
                         </button>
+                        {% if config.INTEGRATIONS_ENABLED and config.INTEGRATIONS_SELF_SERVICE_ENABLED %}
+                        <a class="btn btn-outline-secondary btn-sm" href="/integrations">API access</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>

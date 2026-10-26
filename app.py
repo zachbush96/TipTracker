@@ -26,7 +26,10 @@ db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-CORS(app)
+CORS(app, resources={
+    r"/api/integration-access(?:/.*)?": {"origins": []},
+    r"/.*": {},
+})
 
 # ---------- Supabase configuration (used by frontend and auth blueprint) ----------
 app.config["SUPABASE_URL"] = os.environ.get(
@@ -150,10 +153,13 @@ with app.app_context():
     import api     # noqa: E402
     import auth    # noqa: E402
     import integrations
+    import integration_access
     app.config["INTEGRATIONS_DB_READY"] = DB_MODE != "sqlite" or PRIMARY_DB_URI.startswith("sqlite:")
     app.config["INTEGRATIONS_ENABLED"] = os.environ.get("INTEGRATIONS_ENABLED") == "1"
     app.config["INTEGRATIONS_CREATE_ENABLED"] = os.environ.get("INTEGRATIONS_CREATE_ENABLED") == "1"
+    app.config["INTEGRATIONS_SELF_SERVICE_ENABLED"] = os.environ.get("INTEGRATIONS_SELF_SERVICE_ENABLED") == "1"
     app.register_blueprint(integrations.integration_bp, url_prefix="/api/integrations/v1")
+    app.register_blueprint(integration_access.access_bp)
 
     app.register_blueprint(api.api_bp, url_prefix="/api")
     app.register_blueprint(auth.auth_bp, url_prefix="/auth")
