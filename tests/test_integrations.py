@@ -268,3 +268,18 @@ def test_database_errors_are_generic(client, monkeypatch):
     assert response.status_code == 503
     assert response.json['error'] == 'Database operation failed'
     assert 'private' not in response.get_data(as_text=True)
+
+
+def test_legacy_nullable_sales_are_not_invented(client):
+    with app.app_context():
+        tip = TipEntry(user_id='alice', work_date=datetime.now().date(), weekday=0,
+                       cash_tips=1, card_tips=2, tip_out=0, hours_worked=1, sales_amount=0)
+        db.session.add(tip)
+        db.session.flush()
+        tip.sales_amount = None
+        tip.tip_percentage = None
+        # Production permits historical NULL sales and percentage columns.
+        from integrations import serialize
+        result = serialize(tip)
+        assert result['sales_amount'] is None
+        assert result['tip_percentage'] is None

@@ -125,7 +125,7 @@ The following items remain unverified. This draft does not enable production acc
 - Target assistant client and its explicit consent behavior.
 - Trusted grant issuer, delivery, expiry, revocation, and operational retention policy.
 - Effective production backend role and its access to the additive integration tables.
-- CI validates a disposable PostgreSQL 17 database with UUID/FK schema, trigger calculations, concurrent retries, API owner isolation and restricted Data API roles. It does not establish production credential or role configuration.
+- The standalone PostgreSQL contract runner validates a disposable PostgreSQL 17 database with UUID/FK schema, trigger calculations, concurrent retries, API owner isolation and restricted Data API roles. It does not establish production credential or role configuration.
 - Separate deployment and security review.
 
 `integration_schema.sql` is an additive, review-only PostgreSQL setup script. It enables RLS and revokes public/Data API access on the three integration tables. It creates no permissive policies.

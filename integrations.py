@@ -185,7 +185,7 @@ def own_tips():
 
 
 def serialize(tip):
-    result = {key: format(getattr(tip, key), '.2f') for key in
+    result = {key: (format(getattr(tip, key), '.2f') if getattr(tip, key) is not None else None) for key in
               MONEY + ('hours_worked', 'total_tips', 'net_tips', 'tips_per_hour', 'tip_percentage')}
     result.update(id=tip.id, work_date=tip.work_date.isoformat(), section=tip.section,
                   comments=tip.comments)

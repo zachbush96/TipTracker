@@ -22,7 +22,7 @@ from app import app, db
 from integration_models import IntegrationGrant
 from models import TipEntry
 
-engine = create_engine(url)
+engine = create_engine(url.set(drivername='postgresql+psycopg2'))
 with engine.begin() as conn:
     # Dedicated CI database; fail if it is not empty instead of dropping anything.
     assert conn.scalar(text("select count(*) from information_schema.tables where table_schema='public'")) == 0
