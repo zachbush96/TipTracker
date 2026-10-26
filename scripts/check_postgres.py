@@ -4,8 +4,9 @@ import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
@@ -57,7 +58,7 @@ def headers(name='alice', key=None):
         result['Idempotency-Key'] = key
     return result
 
-entry = dict(work_date=date.today().isoformat(), section='Patio', cash_tips='20.25',
+entry = dict(work_date=datetime.now(ZoneInfo('America/New_York')).date().isoformat(), section='Patio', cash_tips='20.25',
              card_tips='80.75', tip_out='15.00', hours_worked='5.00', sales_amount='600.00',
              comments='Synthetic PostgreSQL contract test')
 client = app.test_client()
@@ -101,4 +102,58 @@ with engine.begin() as conn:
     conn.exec_driver_sql("select set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000001',true)")
     assert conn.scalar(text('select count(*) from public.tip_entries')) == 1
 print('PostgreSQL UUID/FK schema, trigger totals, owner isolation, preview integrity, concurrent retries, and server-only RLS/grants passed')
+
+# New self-service grants use the same UUID-backed schema, without extra tables.
+from types import SimpleNamespace
+import integration_access
+integration_access.get_supabase_client = lambda: SimpleNamespace(auth=SimpleNamespace(
+    get_user=lambda token: SimpleNamespace(user=SimpleNamespace(id='00000000-0000-0000-0000-000000000001'))))
+app.config['INTEGRATIONS_SELF_SERVICE_ENABLED'] = True
+app.secret_key = 'synthetic-postgres-consent-test-only-' * 2
+with client.session_transaction() as cookie:
+    cookie['user'] = dict(id='untrusted-cookie-id', access_token='synthetic-login')
+consent = client.get('/api/integration-access').json
+consent_body = dict(client_id='rook', expires_in_hours=24, access='read', consent=consent['consents']['read'], issuance_id=consent['issuance_id'])
+consent_headers = {'Origin':'http://localhost', 'X-CSRF-Token':consent['csrf_token']}
+cookie_value = client.get_cookie(app.config['SESSION_COOKIE_NAME']).value
+def issue_read(_):
+    with app.test_client() as worker:
+        worker.set_cookie(app.config['SESSION_COOKIE_NAME'], cookie_value)
+        return worker.post('/api/integration-access/grants', json=consent_body, headers=consent_headers)
+with ThreadPoolExecutor(max_workers=4) as pool:
+    issued = list(pool.map(issue_read, range(4)))
+assert sorted(r.status_code for r in issued) == [201, 409, 409, 409]
+grant = next(r.json for r in issued if r.status_code == 201)
+assert grant['scopes'] == ['tips:read']
+read_headers = {'Authorization': 'Bearer '+grant['token'], 'X-Integration-Client':'rook'}
+assert len(client.get(API+'/tips', headers=read_headers).json['tips']) == 1
+assert client.post(API+'/tip-previews', json=entry, headers=read_headers).status_code == 403
+assert 'token_hash' not in client.get('/api/integration-access').get_data(as_text=True)
+consent = client.get('/api/integration-access').json
+revoked = client.post('/api/integration-access/grants/'+grant['id']+'/revoke', json={'revoke':True},
+    headers={'Origin':'http://localhost', 'X-CSRF-Token':consent['csrf_token']})
+assert revoked.status_code == 200
+assert client.get(API+'/tips', headers=read_headers).status_code == 401
+print('PostgreSQL self-service concurrent one-time issuance, read-only scope and immediate revocation passed')
+engine.dispose()
+
+# A separately approved read/create grant still obeys preview integrity and dedupe.
+consent = client.get('/api/integration-access').json
+write_grant = client.post('/api/integration-access/grants',
+    json=dict(client_id='codex', expires_in_hours=1, access='read-create', consent=consent['consents']['read-create'], issuance_id=consent['issuance_id']),
+    headers={'Origin':'http://localhost', 'X-CSRF-Token':consent['csrf_token']})
+assert write_grant.status_code == 201
+write_headers = {'Authorization':'Bearer '+write_grant.json['token'], 'X-Integration-Client':'codex', 'Idempotency-Key':'self-service-approved'}
+write_preview = client.post(API+'/tip-previews', json=entry, headers=write_headers).json
+assert write_preview['consent_required'] and write_preview['possible_duplicates']
+approved = dict(preview_id=write_preview['preview_id'], entry=write_preview['entry'])
+write_result = client.post(API+'/tips', json=approved, headers=write_headers)
+assert write_result.status_code == 201
+write_retry = client.post(API+'/tips', json=approved, headers=write_headers)
+assert write_retry.status_code == 200 and write_retry.json['tip_entry']['id'] == write_result.json['tip_entry']['id']
+assert client.get(API+'/tips/'+str(write_result.json['tip_entry']['id']), headers=write_headers).status_code == 200
+with app.app_context():
+    assert TipEntry.query.count() == 2
+    db.session.remove()
+print('PostgreSQL self-service read/create grant, duplicate warning, approved preview, single create and replay passed')
 engine.dispose()

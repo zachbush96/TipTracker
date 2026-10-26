@@ -28,7 +28,7 @@ Each request requires `Authorization: Bearer <token>` and `X-Integration-Client:
 
 A grant always selects its own user, including manager accounts. No route accepts an owner identifier. The API provides no credential-management, edit, delete, administration, or manager-report operations.
 
-Grant issuance remains an operator design decision before rollout. A trusted issuer must generate at least 256 random bits and store the digest. No route returns tokens. Browser cookies and Supabase credentials are not integration grants.
+A separately gated self-service connection page lets an existing signed-in user explicitly authorize a read-only or read-and-create grant. It generates 256 random bits and stores only the digest. The issuance response reveals the token once to its owner; listing and retries never return it. Browser cookies and Supabase credentials do not authenticate the integration data routes and must not be copied to clients. See the self-service rollout below.
 
 ## Preview and consent contract
 
@@ -123,7 +123,7 @@ The following items remain unverified. This draft does not enable production acc
 
 - Full restore-capable production backup and an exercised restore route before schema changes.
 - Target assistant client and its explicit consent behavior.
-- Trusted grant issuer, delivery, expiry, revocation, and operational retention policy.
+- Approved self-service issuance and secure client configuration, plus operational retention policy.
 - Effective production backend role and its access to the additive integration tables.
 - The standalone PostgreSQL contract runner validates a disposable PostgreSQL 17 database with UUID/FK schema, trigger calculations, concurrent retries, API owner isolation and restricted Data API roles. It does not establish production credential or role configuration.
 - Separate deployment and security review.
@@ -161,3 +161,26 @@ Code may be deployed with both integration flags disabled, without applying the 
 Before enabling access, verify a full PostgreSQL backup (schema, data, roles/grants, functions, triggers and applicable auth/storage coverage) and restore procedure. A public anon export is insufficient. Apply the reviewed integration schema only after this gate. Verify backend privileges without broadening public or Data API access. Record the approved client, owner, scopes, expiry, consent behavior, token delivery/revocation and preview/audit retention policy.
 
 The existing fallback session secret and any previously exposed database credentials still require operator remediation. No credential is generated, rotated or displayed by this code change.
+
+
+## Self-service own-user connections
+
+`/integrations` is a same-origin connection page for every existing Tip Tracker user. It contains no third-party scripts, analytics or external assets. The dashboard link is shown only when both `INTEGRATIONS_ENABLED=1` and `INTEGRATIONS_SELF_SERVICE_ENABLED=1`; both flags default disabled. `INTEGRATIONS_CREATE_ENABLED=1` additionally enables the explicitly selected read-and-create option; it defaults disabled. No credential is issued on page load, login, deployment or migration.
+
+Management uses the existing signed-in browser session, but re-verifies its Supabase access token with Auth on every state, issuance and revocation request. Authorization derives from that verified subject, never a cookie-supplied owner, email or manager role. A matching existing profile is required; this feature never creates or changes profiles. Missing, short or known-placeholder session secrets block management. Operators still need to verify the configured secret is strong and previously exposed credentials are remediated.
+
+- `GET /api/integration-access` lists only the owner's grant metadata and supplies a ten-minute CSRF/confirmation context. It never returns credential hashes or previously issued tokens. Results are paginated in batches of 100 using `offset` and `next_offset`.
+- `POST /api/integration-access/grants` requires exact-origin protection, the CSRF header and explicit consent matching `read-only-own-history-v1` or `read-create-own-history-v1`. Only a chosen Client ID, the fixed access choice `read` or `read-create`, and a 1- or 24-hour lifetime are accepted; 24 hours and read-only are the UI defaults. The two access choices require distinct consent versions. Changing client, expiry or access clears the UI approval checkbox. Raw scopes, owner, token and audience cannot be supplied by the caller. Read-and-create issuance is rejected while creation is disabled. A server-generated unique issuance ID prevents retry/concurrent double issuance. A lost response cannot recover the token; refresh the list and revoke that connection before creating another.
+- `POST /api/integration-access/grants/{id}/revoke` requires the same authentication and CSRF protections plus explicit revocation confirmation. It can only mark an own-user grant revoked; it never deletes grant or financial records. Revocation is idempotent and subsequent data API requests are rejected. It cannot erase data a client already read.
+
+Read-only grants contain `tips:read`; read-and-create grants contain exactly `tips:read tips:create`. Both use audience `tiptracker-integrations-v1`, the verified owner and chosen Client ID. They can read the owner's full date-filtered history, including comments and financial amounts; the default 30-day window is not a hard history limit. Read-only grants cannot create entries. No grant from this page includes edit, delete, manager-report or administrative access. Read-and-create clients must use the exact-preview approval and idempotency flow above. The API binds the reviewed payload but cannot prove human consent; the client must show the normalized entry, totals and duplicate warnings and obtain explicit approval before submitting it.
+
+The plaintext token appears only in the initial issuance response and page memory, with no-store caching, no-referrer and a restrictive CSP. It is not logged or saved to browser storage. Clearing or leaving the page removes its displayed value. The owner must configure it manually in a client that supports HTTP bearer authentication and `X-Integration-Client`; this feature does not implement OAuth, MCP, automatic delivery or connection to an external assistant. Each client needs a separate grant.
+
+Signing out of the app does not revoke previously issued integration grants. Use the connection page to revoke them. Supabase access JWTs can remain valid until expiry after sign-out; online `get_user` verification does not claim instantaneous stolen-session revocation. See [Supabase sign-out behavior](https://supabase.com/docs/reference/python/auth-signout).
+
+### Production activation boundary
+
+Deploying this code performs no DDL, profile changes, issuance or flag changes. Before activation, verify backup/recovery coverage and the actual backend database role, apply only the reviewed additive integration schema, and confirm its three new tables remain inaccessible to public/Data API roles. The self-service backend needs SELECT/INSERT/UPDATE on `integration_grants`; creation also needs SELECT/INSERT/UPDATE on previews and SELECT/INSERT on receipts, plus existing user SELECT, own-tip SELECT/INSERT and sequence access. No new DELETE privilege is required. Its owner/RLS behavior must be verified rather than guessed. Do not broaden anon/authenticated access or add BYPASSRLS to solve a permission error.
+
+For the requested read-and-create rollout, after explicit operator approval enable `INTEGRATIONS_ENABLED=1`, `INTEGRATIONS_SELF_SERVICE_ENABLED=1` and `INTEGRATIONS_CREATE_ENABLED=1`. Users still choose and explicitly consent to each credential's access; no key is created automatically. Every existing profile can then consent for its own account; no allowlist or hardcoded Connor account is used. Each user's Create action is the separate issuance consent. Until activation and real-user verification complete, this is tested code, not live client access.

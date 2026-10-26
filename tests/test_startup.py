@@ -29,12 +29,14 @@ with app.app_context():
     assert client.get('/api/integrations/v1/tips').status_code == 404
     assert not app.config['INTEGRATIONS_ENABLED']
     assert not app.config['INTEGRATIONS_CREATE_ENABLED']
+    assert not app.config['INTEGRATIONS_SELF_SERVICE_ENABLED']
 '''
     env = {**os.environ, 'DATABASE_URL': 'sqlite://', 'DATABASE_URL_FALLBACK': '',
            'SUPABASE_URL': '', 'SUPABASE_REST_URL': '', 'SUPABASE_ANON_KEY': '',
            'SESSION_SECRET': 'synthetic-startup-test'}
     env.pop('INTEGRATIONS_ENABLED', None)
     env.pop('INTEGRATIONS_CREATE_ENABLED', None)
+    env.pop('INTEGRATIONS_SELF_SERVICE_ENABLED', None)
     result = subprocess.run([sys.executable, '-c', script], env=env,
                             capture_output=True, text=True, timeout=20)
     assert result.returncode == 0, result.stdout + result.stderr
