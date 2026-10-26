@@ -12,11 +12,11 @@
     <header><a class="brand" href="/">Tip Tracker</a><a href="/">Back to dashboard</a></header>
     <main>
         <h1>API access</h1>
-        <p class="intro">Let a client read your tip history. You control each connection.</p>
+        <p class="intro">Choose what a client can do with your tips. You control each connection.</p>
         <p id="accessStatus" role="status" aria-live="polite">Verifying your sign-in…</p>
         <a id="signInLink" href="/" hidden>Sign in on the dashboard, then return here</a>
         <section id="connectionSetup" hidden aria-labelledby="newConnectionHeading">
-            <h2 id="newConnectionHeading">Create a read-only connection</h2>
+            <h2 id="newConnectionHeading">Create a connection</h2>
             <p>Signed in as <strong id="accessAccount"></strong></p>
             <form id="connectionForm">
                 <label for="clientId">Client ID</label>
@@ -24,21 +24,24 @@
                 <p class="help" id="clientHelp">Choose the exact ID your client will send. Creating a token does not connect or send data to that client.</p>
                 <label for="expiryHours">Expires after</label>
                 <select id="expiryHours" name="expires_in_hours"><option value="24">24 hours</option><option value="1">1 hour</option></select>
+                <label for="accessLevel">Access</label>
+                <select id="accessLevel" name="access"><option value="read">Read history only</option><option value="read-create" id="createAccessOption">Read history and create entries</option></select>
                 <div class="scope">
                     <strong>Can read</strong>
                     <p>Your own tip history, amounts, dates, sections, comments and calculated totals. The default query covers 30 days; the client can request other dates in your history.</p>
-                    <strong>Cannot change</strong>
-                    <p>No creating, editing or deleting entries. No other users’ data, manager reports or account administration.</p>
+                    <div id="creationDetails" hidden><strong>Can create entries</strong><p>Your client must show you the exact normalized entry and totals, resolve unknown values and possible duplicates, and obtain your explicit approval before submitting it. Changed values require a new preview and approval. Retry protection prevents duplicate submissions.</p></div>
+                    <strong>Always excluded</strong>
+                    <p>No editing or deleting entries. No other users’ data, manager reports or account administration.</p>
                 </div>
-                <label class="consent"><input type="checkbox" id="readConsent" required><span>I approve this client reading my own history for the selected time. Anyone holding the token and Client ID can read that history until it expires or I revoke it.</span></label>
+                <label class="consent"><input type="checkbox" id="readConsent" required><span id="consentText">I approve this client reading my own history for the selected time. Anyone holding the token and Client ID can use this access until it expires or I revoke it.</span></label>
                 <button id="createConnection" type="submit">Create read-only token</button>
             </form>
         </section>
         <section id="tokenReveal" hidden aria-labelledby="tokenHeading">
             <h2 id="tokenHeading">Save your token now</h2>
             <p>This is the only time it is shown. Put it only in your chosen client’s secure credential settings. Do not paste it into chat, a URL or a shared document.</p>
-            <dl><dt>Server URL</dt><dd id="issuedServer"></dd><dt>Client ID</dt><dd id="issuedClient"></dd><dt>Read access expires</dt><dd id="issuedExpiry"></dd></dl>
-            <label for="issuedToken">Read-only token</label><textarea id="issuedToken" readonly rows="3" autocomplete="off" spellcheck="false"></textarea>
+            <dl><dt>Server URL</dt><dd id="issuedServer"></dd><dt>Client ID</dt><dd id="issuedClient"></dd><dt>Permissions</dt><dd id="issuedScopes"></dd><dt>Access expires</dt><dd id="issuedExpiry"></dd></dl>
+            <label for="issuedToken">API token</label><textarea id="issuedToken" readonly rows="3" autocomplete="off" spellcheck="false"></textarea>
             <div class="actions"><button id="copyToken" type="button">Copy token</button><button id="hideToken" class="secondary" type="button">Clear token from this page</button></div>
             <p class="help">The client must support HTTP bearer authentication and the X-Integration-Client header using this Client ID. This is not an OAuth or MCP connection.</p>
         </section>

@@ -16,7 +16,7 @@ function setup({postStatus = 201, fail = false, records = []} = {}) {
         addEventListener(name, fn) {this.listeners[name] = fn;}});
     const field = id => {if (!elements.has(id)) elements.set(id, element()); return elements.get(id);};
     const state = {account: 'synthetic@example.invalid', csrf_token: 'synthetic-csrf',
-        issuance_id: 'synthetic-issuance', consent: 'read-only-own-history-v1', connections: records, next_offset: null};
+        issuance_id: 'synthetic-issuance', consents: {read: 'read-only-own-history-v1', 'read-create': 'read-create-own-history-v1'}, create_enabled: true, connections: records, next_offset: null};
     const context = vm.createContext({
         document: {getElementById: field, createElement: element, addEventListener(name, fn) {handlers[name] = fn;}},
         window: {location: {origin: 'https://example.invalid'}, confirm: () => true,
@@ -30,12 +30,13 @@ function setup({postStatus = 201, fail = false, records = []} = {}) {
             if (fail) throw new Error(token);
             const isPost = options.method === 'POST';
             return {ok: !isPost || postStatus === 201, status: isPost ? postStatus : 200,
-                json: async () => isPost ? {id: 'synthetic-grant', token, client_id: 'rook', expires_at: 2000000000} : state};
+                json: async () => isPost ? {id: 'synthetic-grant', token, client_id: 'rook', scopes: JSON.parse(options.body).access === 'read-create' ? ['tips:read', 'tips:create'] : ['tips:read'], expires_at: 2000000000} : state};
         }
     });
     vm.runInContext(source, context);
     field('clientId').value = 'rook';
     field('expiryHours').value = '24';
+    field('accessLevel').value = 'read';
     return {context, field, requests, handlers, token};
 }
 
@@ -56,7 +57,7 @@ test('explicit issuance uses the displayed scope/expiry consent and reveals only
     s.field('readConsent').checked = true;
     await s.context.issueConnection({preventDefault() {}});
     const post = s.requests.find(r => r.options.method === 'POST');
-    assert.deepEqual(JSON.parse(post.options.body), {client_id: 'rook', expires_in_hours: 24,
+    assert.deepEqual(JSON.parse(post.options.body), {client_id: 'rook', expires_in_hours: 24, access: 'read',
         consent: 'read-only-own-history-v1', issuance_id: 'synthetic-issuance'});
     assert.equal(post.options.headers['X-CSRF-Token'], 'synthetic-csrf');
     assert.equal(s.field('issuedToken').value, s.token);
@@ -110,4 +111,22 @@ test('revocation requires a separate explicit confirmation', async () => {
     assert.equal(s.requests.filter(r => r.options.method === 'POST').length, 1);
     const post = s.requests.find(r => r.options.method === 'POST');
     assert.deepEqual(JSON.parse(post.options.body), {revoke: true});
+});
+
+
+test('read-and-create is an explicit choice with distinct consent and visible permissions', async () => {
+    const s = setup();
+    await s.context.loadConnections();
+    s.field('readConsent').checked = true;
+    s.field('accessLevel').value = 'read-create';
+    s.context.updateConsent();
+    assert.equal(s.field('readConsent').checked, false);
+    assert.equal(s.field('creationDetails').hidden, false);
+    assert.ok(s.field('consentText').textContent.includes('approve each exact preview'));
+    s.field('readConsent').checked = true;
+    await s.context.issueConnection({preventDefault() {}});
+    const body = JSON.parse(s.requests.find(r => r.options.method === 'POST').options.body);
+    assert.equal(body.access, 'read-create');
+    assert.equal(body.consent, 'read-create-own-history-v1');
+    assert.equal(s.field('issuedScopes').textContent, 'tips:read, tips:create');
 });

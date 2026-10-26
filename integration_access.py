@@ -1,4 +1,4 @@
-"""Same-origin, verified-user consent for short-lived own-history read grants."""
+"""Same-origin, verified-user consent for expiring own-user API grants."""
 import hashlib
 import re
 import secrets
@@ -22,6 +22,9 @@ from models import User
 
 access_bp = Blueprint('integration_access', __name__)
 CONSENT = 'read-only-own-history-v1'
+CREATE_CONSENT = 'read-create-own-history-v1'
+ACCESS = {'read': ('tips:read', CONSENT),
+          'read-create': ('tips:read tips:create', CREATE_CONSENT)}
 SESSION_KEY = 'integration_access_consent'
 
 
@@ -148,7 +151,9 @@ def connections():
                    issuance_id=str(uuid.uuid4()), expires_at=int(time.time()) + 600)
     session[SESSION_KEY] = consent
     return jsonify(account=g.access_profile.email, csrf_token=consent['token'],
-                   issuance_id=consent['issuance_id'], consent=CONSENT,
+                   issuance_id=consent['issuance_id'],
+                   consents={key: value[1] for key, value in ACCESS.items()},
+                   create_enabled=current_app.config.get('INTEGRATIONS_CREATE_ENABLED', False),
                    next_offset=offset + 100 if len(records) > 100 else None,
                    connections=[dict(id=r.id, client_id=r.client_id, scopes=r.scopes.split(),
                                      expires_at=r.expires_at, revoked=r.revoked) for r in records[:100]])
@@ -156,29 +161,35 @@ def connections():
 
 @access_bp.post('/api/integration-access/grants')
 @verified_user
-def issue_read_grant():
+def issue_grant():
     failed = check_consent_request()
     if failed:
         return failed
     data = strict_object()
-    if set(data) != {'client_id', 'expires_in_hours', 'consent', 'issuance_id'}:
-        return error('Confirm only the client, expiry and read-only consent shown', 400)
+    if set(data) != {'client_id', 'expires_in_hours', 'access', 'consent', 'issuance_id'}:
+        return error('Confirm only the client, expiry and access consent shown', 400)
     client_id = data['client_id']
     if not isinstance(client_id, str) or not re.fullmatch(r'[a-z0-9][a-z0-9._:-]{0,63}', client_id):
         return error('Client ID must use 1–64 lowercase letters, digits, dots, underscores, colons or hyphens', 400)
     hours = data['expires_in_hours']
     if type(hours) is not int or hours not in (1, 24):
         return error('Choose an expiry of 1 or 24 hours', 400)
+    access = data['access']
+    if not isinstance(access, str) or access not in ACCESS:
+        return error('Choose read-only or read-and-create access', 400)
+    if access == 'read-create' and not current_app.config.get('INTEGRATIONS_CREATE_ENABLED'):
+        return error('Entry creation is not enabled. Choose read-only access.', 403)
+    scopes, consent_version = ACCESS[access]
     consent = session[SESSION_KEY]
-    if data['consent'] != CONSENT or data['issuance_id'] != consent['issuance_id']:
-        return error('Refresh connections and explicitly confirm read-only access', 403)
+    if data['consent'] != consent_version or data['issuance_id'] != consent['issuance_id']:
+        return error('Refresh connections and explicitly confirm the selected access', 403)
     # One server-issued ID per confirmation prevents retry/double-click duplication.
     if db.session.get(IntegrationGrant, consent['issuance_id']) is not None:
         return error('This request was already used. Review connections; tokens cannot be shown again.', 409)
-    token = 'tt_read_' + secrets.token_urlsafe(32)
+    token = 'tt_api_' + secrets.token_urlsafe(32)
     grant = IntegrationGrant(id=consent['issuance_id'], user_id=g.access_subject,
         token_hash=hashlib.sha256(token.encode()).hexdigest(), client_id=client_id,
-        audience=AUDIENCE, scopes='tips:read', expires_at=int(time.time()) + hours * 3600,
+        audience=AUDIENCE, scopes=scopes, expires_at=int(time.time()) + hours * 3600,
         revoked=False)
     try:
         db.session.add(grant)
@@ -188,7 +199,7 @@ def issue_read_grant():
         return error('This request was already used. Review connections; tokens cannot be shown again.', 409)
     g.access_grant_id = grant.id
     return jsonify(id=grant.id, token=token, client_id=grant.client_id,
-                   scopes=['tips:read'], expires_at=grant.expires_at), 201
+                   scopes=grant.scopes.split(), expires_at=grant.expires_at), 201
 
 
 @access_bp.post('/api/integration-access/grants/<uuid:grant_id>/revoke')

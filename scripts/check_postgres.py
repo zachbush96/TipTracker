@@ -113,7 +113,7 @@ app.secret_key = 'synthetic-postgres-consent-test-only-' * 2
 with client.session_transaction() as cookie:
     cookie['user'] = dict(id='untrusted-cookie-id', access_token='synthetic-login')
 consent = client.get('/api/integration-access').json
-consent_body = dict(client_id='rook', expires_in_hours=24, consent=consent['consent'], issuance_id=consent['issuance_id'])
+consent_body = dict(client_id='rook', expires_in_hours=24, access='read', consent=consent['consents']['read'], issuance_id=consent['issuance_id'])
 consent_headers = {'Origin':'http://localhost', 'X-CSRF-Token':consent['csrf_token']}
 cookie_value = client.get_cookie(app.config['SESSION_COOKIE_NAME']).value
 def issue_read(_):
@@ -135,4 +135,25 @@ revoked = client.post('/api/integration-access/grants/'+grant['id']+'/revoke', j
 assert revoked.status_code == 200
 assert client.get(API+'/tips', headers=read_headers).status_code == 401
 print('PostgreSQL self-service concurrent one-time issuance, read-only scope and immediate revocation passed')
+engine.dispose()
+
+# A separately approved read/create grant still obeys preview integrity and dedupe.
+consent = client.get('/api/integration-access').json
+write_grant = client.post('/api/integration-access/grants',
+    json=dict(client_id='codex', expires_in_hours=1, access='read-create', consent=consent['consents']['read-create'], issuance_id=consent['issuance_id']),
+    headers={'Origin':'http://localhost', 'X-CSRF-Token':consent['csrf_token']})
+assert write_grant.status_code == 201
+write_headers = {'Authorization':'Bearer '+write_grant.json['token'], 'X-Integration-Client':'codex', 'Idempotency-Key':'self-service-approved'}
+write_preview = client.post(API+'/tip-previews', json=entry, headers=write_headers).json
+assert write_preview['consent_required'] and write_preview['possible_duplicates']
+approved = dict(preview_id=write_preview['preview_id'], entry=write_preview['entry'])
+write_result = client.post(API+'/tips', json=approved, headers=write_headers)
+assert write_result.status_code == 201
+write_retry = client.post(API+'/tips', json=approved, headers=write_headers)
+assert write_retry.status_code == 200 and write_retry.json['tip_entry']['id'] == write_result.json['tip_entry']['id']
+assert client.get(API+'/tips/'+str(write_result.json['tip_entry']['id']), headers=write_headers).status_code == 200
+with app.app_context():
+    assert TipEntry.query.count() == 2
+    db.session.remove()
+print('PostgreSQL self-service read/create grant, duplicate warning, approved preview, single create and replay passed')
 engine.dispose()

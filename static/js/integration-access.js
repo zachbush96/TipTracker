@@ -9,6 +9,16 @@ function clearToken() {
     field('tokenReveal').hidden = true;
 }
 
+function updateConsent() {
+    const create = field('accessLevel').value === 'read-create';
+    field('creationDetails').hidden = !create;
+    field('readConsent').checked = false;
+    field('consentText').textContent = create
+        ? 'I approve this client reading my history and creating entries only after I approve each exact preview. Anyone holding the token and Client ID can use these permissions until expiry or revocation.'
+        : 'I approve this client reading my own history for the selected time. Anyone holding the token and Client ID can read that history until expiry or revocation. No entry creation is allowed.';
+    field('createConnection').textContent = create ? 'Create read-and-create token' : 'Create read-only token';
+}
+
 async function requestAccess(url, options = {}) {
     let response;
     try { response = await fetch(url, {credentials: 'same-origin', cache: 'no-store', ...options}); }
@@ -81,10 +91,13 @@ async function loadConnections({preserveReveal = false, older = false} = {}) {
         const data = await requestAccess('/api/integration-access' + (offset != null ? `?offset=${offset}` : ''));
         connectionState = data;
         field('accessAccount').textContent = data.account;
+        field('createAccessOption').disabled = !data.create_enabled;
+        if (!data.create_enabled) field('accessLevel').value = 'read';
+        updateConsent();
         field('connectionSetup').hidden = false;
         renderConnections(data.connections, older);
         field('olderConnections').hidden = data.next_offset == null;
-        status('Your sign-in is verified. New connections are read-only.');
+        status('Your sign-in is verified. Choose the access you want to authorize.');
     } catch (error) { clearToken(); status(error.message); }
 }
 
@@ -99,11 +112,12 @@ async function issueConnection(event) {
         const data = await requestAccess('/api/integration-access/grants', {
             method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRF-Token': connectionState.csrf_token},
             body: JSON.stringify({client_id: field('clientId').value, expires_in_hours: Number(field('expiryHours').value),
-                consent: connectionState.consent, issuance_id: connectionState.issuance_id})
+                access: field('accessLevel').value, consent: connectionState.consents[field('accessLevel').value], issuance_id: connectionState.issuance_id})
         });
         field('issuedToken').value = data.token;
         field('issuedServer').textContent = `${window.location.origin}/api/integrations/v1`;
         field('issuedClient').textContent = data.client_id;
+        field('issuedScopes').textContent = data.scopes.join(', ');
         field('issuedExpiry').textContent = new Date(data.expires_at * 1000).toLocaleString();
         field('tokenReveal').hidden = false;
         field('readConsent').checked = false;
@@ -120,6 +134,7 @@ async function issueConnection(event) {
 
 document.addEventListener('DOMContentLoaded', () => {
     field('connectionForm').addEventListener('submit', issueConnection);
+    for (const id of ['accessLevel', 'expiryHours', 'clientId']) field(id).addEventListener('change', updateConsent);
     field('refreshConnections').addEventListener('click', () => loadConnections());
     field('olderConnections').addEventListener('click', () => loadConnections({older: true}));
     field('hideToken').addEventListener('click', clearToken);

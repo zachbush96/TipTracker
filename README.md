@@ -108,7 +108,7 @@ Both feature flags default to disabled. See [the integration contract](docs/inte
 
 
 An optional API access page lets each existing signed-in user explicitly issue
-and revoke separate read-only client credentials, expiring after 1 or 24 hours.
+and revoke separate read-only or read-and-create client credentials, expiring after 1 or 24 hours.
 It is disabled by default behind `INTEGRATIONS_SELF_SERVICE_ENABLED=0` and requires
 the separately reviewed integration schema and API enablement. It neither shares
 login cookies with clients nor connects to third parties automatically. See the
