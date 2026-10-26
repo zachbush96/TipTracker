@@ -65,6 +65,7 @@ def test_credentials(client, field, value, status):
     {'cash_tips': '99999999.99', 'card_tips': '1.00'},
     {'cash_tips': '1000000', 'hours_worked': '0.01'},
     {'cash_tips': '999', 'sales_amount': '0.01'},
+    {'tip_out': '1000000', 'hours_worked': '0.01'},
 ])
 def test_invalid_fields(client, change):
     assert preview(client, **change).status_code == 400

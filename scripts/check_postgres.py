@@ -17,7 +17,7 @@ if url.host not in ('localhost', '127.0.0.1') or url.database != 'tiptracker_tes
     raise RuntimeError('Only the disposable localhost tiptracker_test database is allowed')
 # Import with an empty SQLite database, then explicitly swap the test engine.
 os.environ.update(DATABASE_URL='sqlite://', DATABASE_URL_FALLBACK='',
-                  SUPABASE_URL='', SUPABASE_ANON_KEY='', SESSION_SECRET='synthetic-tests-only')
+                  SUPABASE_URL='', SUPABASE_REST_URL='', SUPABASE_ANON_KEY='', SESSION_SECRET='synthetic-tests-only')
 from app import app, db
 from integration_models import IntegrationGrant
 from models import TipEntry
@@ -30,6 +30,7 @@ with engine.begin() as conn:
     conn.exec_driver_sql("create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$")
     conn.exec_driver_sql('create role anon; create role authenticated')
     conn.exec_driver_sql((ROOT / 'schema.sql').read_text())
+    conn.exec_driver_sql('alter default privileges in schema public grant all on tables to anon, authenticated')
     conn.exec_driver_sql((ROOT / 'integration_schema.sql').read_text())
     for name, uid in [('alice', '00000000-0000-0000-0000-000000000001'),
                       ('bob', '00000000-0000-0000-0000-000000000002')]:
