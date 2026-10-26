@@ -132,7 +132,7 @@ The following items remain unverified. This draft does not enable production acc
 
 Application ownership filters provide API isolation even when the backend role bypasses RLS. SQLite tests do not establish PostgreSQL or Supabase isolation. Existing browser authorization and policies remain outside this draft.
 
-The application creates only the existing browser tables at startup. The integration schema requires an explicit deployment step. An unavailable schema returns a generic database error.
+Application startup never creates or migrates tables. Local SQLite browser-table setup uses the explicit development-only CLI command documented in the README. The integration schema requires an explicit deployment step. An unavailable integration schema returns a generic database error.
 
 `INTEGRATIONS_ENABLED=1` exposes authenticated integration routes. `INTEGRATIONS_CREATE_ENABLED=1` additionally permits entry creation. Both remain unset until their respective rollout reviews finish. Automatic SQLite fallback rejects integration access. Explicit SQLite configuration supports isolated development.
 

@@ -87,6 +87,13 @@ block outbound network calls; no Supabase data is created, updated, or deleted.
 The optional integration API stays disabled by default. No integration schema
 migration is applied automatically.
 
+Application startup never creates or migrates database tables. Production requires
+an already provisioned schema; schema changes remain a separate reviewed operation.
+For a new local SQLite development database, explicitly set a SQLite `DATABASE_URL`
+and run `flask --app main init-dev-db` before starting the app. This command creates
+only browser tables and rejects PostgreSQL and automatic SQLite fallback. Tests
+continue to create their own isolated schema explicitly.
+
 ### 5. Install Dependencies
 
 The application uses these Python packages (install via pip):

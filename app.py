@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import click
 from typing import Tuple, Literal
 
 from flask import Flask, jsonify, render_template
@@ -50,7 +51,6 @@ CONNECT_TIMEOUT = int(os.environ.get("DB_CONNECT_TIMEOUT", "6"))  # sec
 PROBE_RETRIES = int(os.environ.get("DB_PROBE_RETRIES", "2"))      # total attempts per URI
 RETRY_SLEEP = float(os.environ.get("DB_RETRY_SLEEP", "0.6"))      # sec between attempts
 ALLOW_SQLITE_FALLBACK = os.environ.get("ALLOW_SQLITE_FALLBACK", "1") not in ("0", "false", "False")
-RAISE_ON_DB_FAILURE = os.environ.get("RAISE_ON_DB_FAILURE", "0") in ("1", "true", "True")
 
 # Base connect args for psycopg2
 ENGINE_CONNECT_ARGS = {"connect_timeout": CONNECT_TIMEOUT, "sslmode": "require"}
@@ -208,10 +208,11 @@ with app.app_context():
     except Exception as e:
         logger.warning("Engine init ping failed (%s)", type(e).__name__)
 
-    # Existing browser tables retain their startup behavior.
-    try:
+    @app.cli.command("init-dev-db")
+    def init_dev_db():
+        """Explicitly create browser tables in a configured local SQLite database."""
+        if not PRIMARY_DB_URI.startswith("sqlite:") or db.engine.dialect.name != "sqlite":
+            raise click.ClickException("Development initialization requires an explicit SQLite DATABASE_URL")
+        # Production schema changes are never part of startup or this command.
         db.metadata.create_all(db.engine, tables=[models.User.__table__, models.TipEntry.__table__])
-    except Exception as e:
-        logger.error("db.create_all() failed (%s)", type(e).__name__)
-        if RAISE_ON_DB_FAILURE:
-            raise
+        click.echo("Development browser tables initialized.")
