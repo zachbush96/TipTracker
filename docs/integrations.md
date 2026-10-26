@@ -1,6 +1,6 @@
 # Scoped tip-entry API
 
-This draft implements the API portion of issue #16. Both feature flags default to disabled. No deployment or credential issuance occurs.
+This implements the API portion of issue #16. Both feature flags default to disabled. Deploying code does not issue credentials or enable client access.
 
 The browser API keeps its existing routes and response format. Both APIs use shared Decimal calculations with PostgreSQL-compatible half-up rounding. Integration validation is stricter than browser validation.
 
@@ -53,7 +53,7 @@ A client needs both scopes for the complete flow. Same-day entries produce warni
   "section": "patio",
   "cash_tips": "20.25",
   "card_tips": "80.75",
-  "tip_out": null,
+  "tip_out": "15.00",
   "sales_amount": "600.00",
   "hours_worked": "5.00",
   "comments": "Synthetic example"
@@ -62,9 +62,7 @@ A client needs both scopes for the complete flow. Same-day entries produce warni
 
 All eight keys are required for a ready preview. Missing fields or unknown financial values produce 422 with `ready=false`, `unresolved_fields`, and no preview identifier. Explicit zero differs from unknown.
 
-`tip_out` must be null because the existing schema does not support it. Any non-null value, including zero, produces an unresolved field and a visible warning. Null means unsupported, not zero.
-
-Cash tips and card tips retain the existing accounting meaning. `total_tips` remains their sum. The API never subtracts tip-out or maps cash owed, deposits, or cash sales into cash tips.
+`tip_out` requires an explicit nonnegative decimal, including explicit zero when none was paid. Null means unknown and prevents a ready preview. Cash and card tips are gross amounts before tip-out; `total_tips` is their sum, `net_tips` subtracts tip-out, and `tips_per_hour` uses net tips. Tip percentage uses gross tips divided by sales, matching the deployed PostgreSQL trigger. Negative net tips are permitted when tip-out exceeds gross, matching the app. The API never maps cash owed, deposits, or cash sales into cash tips.
 
 Amounts accept finite decimal strings or JSON numbers with at most two decimal places. Monetary fields range from zero through 99999999.99. Hours exceed zero and do not exceed 24.
 
@@ -86,7 +84,7 @@ The parser rejects arrays, duplicate keys, unexpected fields, booleans as amount
     "section": "patio",
     "cash_tips": "20.25",
     "card_tips": "80.75",
-    "tip_out": null,
+    "tip_out": "15.00",
     "sales_amount": "600.00",
     "hours_worked": "5.00",
     "comments": "Synthetic example"
@@ -123,11 +121,11 @@ Audit retention follows the host log policy. Operators must set and document tha
 
 The following items remain unverified. This draft does not enable production access.
 
-- Deployed schema and gross/net interpretation of cash and card tips.
+- Full restore-capable production backup and an exercised restore route before schema changes.
 - Target assistant client and its explicit consent behavior.
 - Trusted grant issuer, delivery, expiry, revocation, and operational retention policy.
-- Effective PostgreSQL role, RLS behavior, grants, trigger calculations, and concurrent transactions.
-- PostgreSQL isolation tests for backend and Data API roles with synthetic users.
+- Effective production backend role and its access to the additive integration tables.
+- CI validates a disposable PostgreSQL 17 database with UUID/FK schema, trigger calculations, concurrent retries, API owner isolation and restricted Data API roles. It does not establish production credential or role configuration.
 - Separate deployment and security review.
 
 `integration_schema.sql` is an additive, review-only PostgreSQL setup script. It enables RLS and revokes public/Data API access on the three integration tables. It creates no permissive policies.
@@ -152,3 +150,14 @@ python -m pytest -q
 The suite covers authentication, scopes, manager isolation, strict validation, unknown values, preview binding, expiry, retry protection, concurrent requests, and browser compatibility.
 
 An MCP adapter remains deferred until the target client and supported authentication flow are known. The adapter can wrap this API without direct database access.
+
+
+## Deployment and rollback
+
+On 2026-10-26, read-only production catalog inspection confirmed UUID user IDs, bigint tip IDs, numeric tip-out/net columns, and the trigger semantics above. Integration tables were absent. No production financial entries were inserted or changed for validation.
+
+Code may be deployed with both integration flags disabled, without applying the additive schema. Preserve the prior Replit deployment/checkpoint and source revision before updating. Roll back code by restoring that checkpoint or reverting the code commit and republishing; leave existing business data unchanged. Do not enable access, create grants, change existing RLS or rotate credentials as part of a code-only rollout. Those require separate operator approval.
+
+Before enabling access, verify a full PostgreSQL backup (schema, data, roles/grants, functions, triggers and applicable auth/storage coverage) and restore procedure. A public anon export is insufficient. Apply the reviewed integration schema only after this gate. Verify backend privileges without broadening public or Data API access. Record the approved client, owner, scopes, expiry, consent behavior, token delivery/revocation and preview/audit retention policy.
+
+The existing fallback session secret and any previously exposed database credentials still require operator remediation. No credential is generated, rotated or displayed by this code change.
