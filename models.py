@@ -43,8 +43,6 @@ class TipEntry(db.Model):
 
     def recalculate_derived_fields(self):
         """Recalculate all derived fields. Call this after updating tip amounts."""
-        from decimal import Decimal
-        self.net_tips = Decimal(str(self.cash_tips or 0)) + Decimal(str(self.card_tips or 0)) - Decimal(str(self.tip_out or 0))
         from tip_domain import calculate_totals
         for field, value in calculate_totals(
             self.cash_tips, self.card_tips, self.hours_worked, self.sales_amount, self.tip_out

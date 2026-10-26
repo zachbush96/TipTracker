@@ -34,8 +34,16 @@ app.config["SUPABASE_URL"] = os.environ.get(
 app.config["SUPABASE_ANON_KEY"] = os.environ.get("SUPABASE_ANON_KEY", "")
 
 # ---------- Candidate Postgres URIs (always sslmode=require) ----------
-PRIMARY_DB_URI = os.environ.get("DATABASE_URL", "")
-FALLBACK_DB_URI = os.environ.get("DATABASE_URL_FALLBACK", "")
+def _psycopg2_uri(uri: str) -> str:
+    # SQLAlchemy 2.1 defaults to psycopg3; this app installs psycopg2.
+    for prefix in ("postgresql://", "postgres://"):
+        if uri.startswith(prefix):
+            return "postgresql+psycopg2://" + uri[len(prefix):]
+    return uri
+
+
+PRIMARY_DB_URI = _psycopg2_uri(os.environ.get("DATABASE_URL", ""))
+FALLBACK_DB_URI = _psycopg2_uri(os.environ.get("DATABASE_URL_FALLBACK", ""))
 
 # ---------- Tunables ----------
 CONNECT_TIMEOUT = int(os.environ.get("DB_CONNECT_TIMEOUT", "6"))  # sec

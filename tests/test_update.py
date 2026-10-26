@@ -25,3 +25,10 @@ def test_pages_health_and_auth_guards(client):
 
 def test_health_does_not_expose_connection_details(client):
     assert client.get("/healthz").json["db_uri"] == "configured database"
+
+
+def test_postgres_uses_installed_driver():
+    from app import _psycopg2_uri
+    for scheme in ('postgres://', 'postgresql://', 'postgresql+psycopg2://'):
+        assert _psycopg2_uri(scheme + 'localhost/test') == 'postgresql+psycopg2://localhost/test'
+    assert _psycopg2_uri('sqlite://') == 'sqlite://'

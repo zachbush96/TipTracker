@@ -22,7 +22,7 @@ integration_bp = Blueprint('integrations', __name__)
 AUDIENCE = 'tiptracker-integrations-v1'
 FIELDS = {'work_date', 'section', 'cash_tips', 'card_tips', 'tip_out',
           'sales_amount', 'hours_worked', 'comments'}
-MONEY = ('cash_tips', 'card_tips', 'sales_amount')
+MONEY = ('cash_tips', 'card_tips', 'sales_amount', 'tip_out')
 
 
 class InvalidInput(ValueError):
@@ -149,9 +149,6 @@ def normalize(data):
                             if key in data and data[key] is None]
     if unresolved:
         return None, sorted(set(unresolved)), []
-    # No interpretation of gross/net or tip-out is authorized by this API.
-    if data['tip_out'] is not None:
-        return None, ['tip_out'], ['Tip-out is unsupported. Resolve accounting outside this API before a new preview.']
     work_date = parse_date(data['work_date'])
     today = datetime.now(ZoneInfo('America/New_York')).date()
     if work_date > today:
@@ -160,7 +157,7 @@ def normalize(data):
     numbers['hours_worked'] = decimal_field(data['hours_worked'], 'hours_worked', Decimal('24'))
     if numbers['hours_worked'] <= 0:
         raise InvalidInput('hours_worked must exceed zero')
-    result = {'work_date': work_date.isoformat(), 'tip_out': None}
+    result = {'work_date': work_date.isoformat()}
     for key, limit in [('section', 50), ('comments', 500)]:
         value = data[key]
         if value is not None and not isinstance(value, str):
@@ -171,9 +168,9 @@ def normalize(data):
         if value and len(value) > limit:
             raise InvalidInput(f'{key} exceeds {limit} characters')
         result[key] = value
-    totals = calculate_totals(*(numbers[k] for k in ('cash_tips', 'card_tips', 'hours_worked', 'sales_amount')))
-    for key, maximum in [('total_tips', '99999999.99'), ('tips_per_hour', '999999.99'), ('tip_percentage', '999.99')]:
-        if totals[key] > Decimal(maximum):
+    totals = calculate_totals(*(numbers[k] for k in ('cash_tips', 'card_tips', 'hours_worked', 'sales_amount', 'tip_out')))
+    for key, maximum in [('total_tips', '99999999.99'), ('net_tips', '99999999.99'), ('tips_per_hour', '999999.99'), ('tip_percentage', '999.99')]:
+        if abs(totals[key]) > Decimal(maximum):
             raise InvalidInput(f'{key} exceeds database precision')
     result.update({key: format(value, '.2f') for key, value in numbers.items()})
     return result, [], []
@@ -188,10 +185,10 @@ def own_tips():
 
 
 def serialize(tip):
-    result = {key: format(getattr(tip, key), '.2f') for key in
-              MONEY + ('hours_worked', 'total_tips', 'tips_per_hour', 'tip_percentage')}
+    result = {key: (format(getattr(tip, key), '.2f') if getattr(tip, key) is not None else None) for key in
+              MONEY + ('hours_worked', 'total_tips', 'net_tips', 'tips_per_hour', 'tip_percentage')}
     result.update(id=tip.id, work_date=tip.work_date.isoformat(), section=tip.section,
-                  comments=tip.comments, tip_out=None)
+                  comments=tip.comments)
     return result
 
 
@@ -248,7 +245,7 @@ def preview():
                         payload=canonical(payload), expires_at=int(time.time()) + 600)
     db.session.add(record)
     db.session.commit()
-    totals = calculate_totals(*(payload[k] for k in ('cash_tips', 'card_tips', 'hours_worked', 'sales_amount')))
+    totals = calculate_totals(*(payload[k] for k in ('cash_tips', 'card_tips', 'hours_worked', 'sales_amount', 'tip_out')))
     return jsonify(ready=True, preview_id=record.id, expires_at=record.expires_at,
                    entry=payload, totals={k: format(v, '.2f') for k, v in totals.items()},
                    possible_duplicates=[serialize(t) for t in duplicates],
@@ -302,7 +299,7 @@ def create_tip():
         if receipt:
             return receipt_response(receipt, payload_text)
         return fail('Preview expired or already consumed. Request a new preview.', 409)
-    fields = {k: v for k, v in payload.items() if k != 'tip_out'}
+    fields = dict(payload)
     fields['work_date'] = parse_date(fields['work_date'])
     for field in MONEY + ('hours_worked',):
         fields[field] = Decimal(fields[field])

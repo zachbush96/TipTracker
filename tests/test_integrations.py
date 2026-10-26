@@ -20,7 +20,7 @@ def headers(user='alice', key=None):
 
 def entry(**changes):
     result = dict(work_date=datetime.now(ZoneInfo('America/New_York')).date().isoformat(),
-                  section='Patio', cash_tips='20.25', card_tips='80.75', tip_out=None,
+                  section='Patio', cash_tips='20.25', card_tips='80.75', tip_out='0.00',
                   sales_amount='600.00', hours_worked='5.00', comments='Synthetic entry')
     result.update(changes)
     return result
@@ -65,6 +65,7 @@ def test_credentials(client, field, value, status):
     {'cash_tips': '99999999.99', 'card_tips': '1.00'},
     {'cash_tips': '1000000', 'hours_worked': '0.01'},
     {'cash_tips': '999', 'sales_amount': '0.01'},
+    {'tip_out': '1000000', 'hours_worked': '0.01'},
 ])
 def test_invalid_fields(client, change):
     assert preview(client, **change).status_code == 400
@@ -80,10 +81,9 @@ def test_unknown_and_tip_out(client):
     assert response.status_code == 422
     assert response.json['preview_id'] is None
     assert 'cash_tips' in response.json['unresolved_fields']
-    for value in ['0.00', '10.00']:
-        response = preview(client, tip_out=value)
-        assert response.status_code == 422
-        assert response.json['warnings']
+    response = preview(client, tip_out=None)
+    assert response.status_code == 422
+    assert 'tip_out' in response.json['unresolved_fields']
     response = client.post(ROOT + '/tip-previews', json={'work_date': '2026-01-01'}, headers=headers())
     assert response.status_code == 422
     assert 'cash_tips' in response.json['unresolved_fields']
@@ -91,7 +91,7 @@ def test_unknown_and_tip_out(client):
 
 def test_preview_create_read_and_isolation(client):
     record = preview(client).json
-    assert record['totals'] == dict(total_tips='101.00', tips_per_hour='20.20', tip_percentage='16.83')
+    assert record['totals'] == dict(total_tips='101.00', net_tips='101.00', tips_per_hour='20.20', tip_percentage='16.83')
     with app.app_context():
         assert TipEntry.query.count() == 0
     response = create(client, record)
@@ -237,3 +237,50 @@ def test_automatic_fallback_rejected(client):
 def test_shared_postgres_rounding():
     from tip_domain import calculate_totals
     assert calculate_totals('1.005', '0', '1', '0')['total_tips'] == __import__('decimal').Decimal('1.01')
+
+
+@pytest.mark.parametrize('tip_out,net,hourly', [('15.00', '86.00', '17.20'), ('110.00', '-9.00', '-1.80')])
+def test_tip_out_preview_create_and_read(client, tip_out, net, hourly):
+    record = preview(client, tip_out=tip_out).json
+    assert record['totals'] == dict(total_tips='101.00', net_tips=net, tips_per_hour=hourly, tip_percentage='16.83')
+    response = create(client, record)
+    assert response.status_code == 201
+    saved = response.json['tip_entry']
+    assert saved['tip_out'] == tip_out
+    assert saved['net_tips'] == net
+    assert saved['tips_per_hour'] == hourly
+    assert create(client, record).json['tip_entry'] == saved
+    changed = {**record, 'entry': {**record['entry'], 'tip_out': '1.00'}}
+    assert create(client, changed, 'changed').status_code == 409
+
+
+@pytest.mark.parametrize('value', [True, '-1', 'NaN', '1.001', '100000000.00'])
+def test_invalid_tip_out(client, value):
+    assert preview(client, tip_out=value).status_code == 400
+
+
+def test_database_errors_are_generic(client, monkeypatch):
+    from sqlalchemy.exc import SQLAlchemyError
+    import integrations
+    def broken(*args, **kwargs):
+        raise SQLAlchemyError('private connection details')
+    monkeypatch.setattr(integrations, 'own_tips', broken)
+    response = client.get(ROOT + '/tips', headers=headers())
+    assert response.status_code == 503
+    assert response.json['error'] == 'Database operation failed'
+    assert 'private' not in response.get_data(as_text=True)
+
+
+def test_legacy_nullable_sales_are_not_invented(client):
+    with app.app_context():
+        tip = TipEntry(user_id='alice', work_date=datetime.now().date(), weekday=0,
+                       cash_tips=1, card_tips=2, tip_out=0, hours_worked=1, sales_amount=0)
+        db.session.add(tip)
+        db.session.flush()
+        tip.sales_amount = None
+        tip.tip_percentage = None
+        # Production permits historical NULL sales and percentage columns.
+        from integrations import serialize
+        result = serialize(tip)
+        assert result['sales_amount'] is None
+        assert result['tip_percentage'] is None
